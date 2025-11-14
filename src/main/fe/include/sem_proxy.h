@@ -118,6 +118,7 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
+  std::vector<std::tuple<int,int,int>> selectPoint;
 
   // initialize source and RHS
   void init_source();

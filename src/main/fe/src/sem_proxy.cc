@@ -118,6 +118,17 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   timemax_ = opt.timemax;
   num_sample_ = timemax_ / dt_;
 
+
+
+  std::ifstream selectPointFile(opt.receiverfilename);
+
+  if(selectPointFile){
+    selectPoint.
+    //TODO : Faire une liste de coordonées où indice = un receveur
+  }
+
+
+
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
                                          modelLocation, physicType, order);
   m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge,
@@ -137,6 +148,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   std::cout << "Order of approximation will be " << order << std::endl;
   std::cout << "Time step is " << dt_ << "s" << std::endl;
   std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
+
 
 }
 

@@ -16,6 +16,7 @@ class SemProxyOptions
   std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
+  const char* receiverfilename;
   float dt = 0.001;
   float timemax = 1.5;
   bool autodt = false;
@@ -71,6 +72,7 @@ class SemProxyOptions
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic)),
+        ("receiverfilename", "a file contain receiver position", cxxopts::value<const char*>(o.receiverfilename));
   }
 };

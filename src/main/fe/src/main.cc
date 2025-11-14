@@ -31,7 +31,21 @@ void compute(SEMproxy &semsim)
        << endl;
 };
 
-void compute_loop(SEMproxy &semsim) { compute(semsim); }
+//  LOGAN TODO  : 
+void compute_loop(SEMproxy &semsim,FILE* receiverFile) { 
+  if(!receiverFile){
+    compute(semsim); 
+  }
+  else{
+    // Faire une liste de coordonées où indice = un receveur
+
+    // Relier ces coordonéers au différent point déjà existant
+
+    compute(semsim);
+  }
+
+
+  }
 
 int main(int argc, char *argv[])
 {
@@ -51,7 +65,6 @@ int main(int argc, char *argv[])
 
     SemProxyOptions opt;
     SemProxyOptions::bind_cli(options, opt);
-
     auto result = options.parse(argc, argv);
 
     if (result.count("help"))
@@ -75,9 +88,12 @@ int main(int argc, char *argv[])
     cout << "| Initializing SEM Application ... |" << endl;
     cout << "+==================================+\n" << endl;
 
+    FILE *file = fopen(opt.receiverfilename,"r");
+
+
     SEMproxy semsim(opt);
 
-    compute_loop(semsim);
+    compute_loop(semsim,file);
 
 #ifdef USE_KOKKOS
   }
