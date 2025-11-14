@@ -43,7 +43,7 @@ The current SEM proxy supports the following data container:
 ```sh
 mkdir build
 cd build
-cmake ..
+cmake .. -DUSE_VECTOR=OFF -DUSE_KOKKOS=ON
 make install
 ```
 
