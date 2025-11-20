@@ -16,7 +16,7 @@ class SemProxyOptions
   std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
-  const char* receiverfilename;
+  std::string receiverfilename = "";
   float dt = 0.001;
   float timemax = 1.5;
   bool autodt = false;
@@ -53,7 +53,8 @@ class SemProxyOptions
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))(
         "implem", "Implementation: makutu|shiva",
         cxxopts::value<std::string>(o.implem))(
-        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))(
+        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))
+        ("rf", "a file contain receiver position", cxxopts::value<std::string>(o.receiverfilename))(
         "mesh", "Mesh: cartesian|ucartesian",
         cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)",
@@ -72,7 +73,6 @@ class SemProxyOptions
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic)),
-        ("receiverfilename", "a file contain receiver position", cxxopts::value<const char*>(o.receiverfilename));
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
   }
 };

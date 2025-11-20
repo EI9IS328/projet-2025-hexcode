@@ -76,6 +76,8 @@ class SEMproxy
 
   void saveSnapshot(int timestep);
 
+  void saveSismo(int timestep);
+
  private:
   int i1 = 0;
   int i2 = 1;
@@ -118,7 +120,8 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
-  std::vector<std::tuple<int,int,int>> selectPoint;
+
+  std::vector<std::array<int, 3>> selectPoint;
 
   // initialize source and RHS
   void init_source();

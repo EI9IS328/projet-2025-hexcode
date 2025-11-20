@@ -122,9 +122,24 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   std::ifstream selectPointFile(opt.receiverfilename);
 
-  if(selectPointFile){
-    selectPoint.
-    //TODO : Faire une liste de coordonées où indice = un receveur
+  if(selectPointFile.is_open()){
+    std::string line;
+    int x, y, z;
+    while(std::getline(selectPointFile, line)){
+      std::istringstream iss(line);
+      if(!(iss >> x >> y >> z)){
+        throw std::runtime_error("Error reading receiver coordinates from file.");
+      }
+
+      if(x < 0 || x >= nb_nodes_[0] || y < 0 || y >= nb_nodes_[1] || z < 0 || z >= nb_nodes_[2]){
+        throw std::runtime_error("Receiver coordinates out of bounds.");
+      }
+
+      selectPoint.push_back({x, y, z});
+    }
+    selectPointFile.close();
+
+
   }
 
 
@@ -152,6 +167,34 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 }
 
+void SEMproxy::saveSismo(int timestep)
+{
+  FILE *file = fopen("receiver_output.txt", "a+");
+  if (!file) {
+    fprintf(stderr, "Couldn't open file %s\n", "receiver_output.txt");
+    exit(EXIT_FAILURE);
+  }
+
+  fprintf(file, "sismo timestep x y z pressure\n");
+
+  for (int i = 0; i < selectPoint.size(); i++) {
+    std::array<int, 3> point = selectPoint[i];
+    int x = point[0];
+    int y = point[1];
+    int z = point[2];
+
+    int nodeIdx = x + y * nb_nodes_[0] + z * nb_nodes_[0] * nb_nodes_[1];
+    float pressure = pnGlobal(nodeIdx, i2);
+
+    fprintf(file, "%d %d %d %d %d %f\n",i, timestep, x, y, z, pressure);
+  }
+  fclose(file);
+}
+
+void proxyNodeCoord(std::array<int,3>){
+  
+}
+
 void SEMproxy::run()
 {
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
@@ -173,6 +216,10 @@ void SEMproxy::run()
     {
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
+    }
+
+    if(selectPoint.size() > 0){
+      saveSismo(indexTimeSample);
     }
 
     // Save pressure at receiver
