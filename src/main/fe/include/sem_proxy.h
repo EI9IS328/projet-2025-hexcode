@@ -91,6 +91,7 @@ class SEMproxy
 
   // snapshots
   bool is_snapshots_;
+  bool is_slices_;
   int snap_time_interval_;
   std::string data_folder_;
   std::string date_;

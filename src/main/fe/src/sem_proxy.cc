@@ -107,6 +107,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   // save parameters
   is_snapshots_ = opt.isSnapshot;
+  is_slices_ = opt.isSlice;
   snap_time_interval_ = opt.snapTimeInterval;
   data_folder_ = "../data/";
   // Get unique filename
@@ -163,17 +164,33 @@ void SEMproxy::saveSlice(int timestep) {
     exit(EXIT_FAILURE);
   }
 
-  fprintf(file, "snap timestep x y pressure\n");
+  fprintf(file, "plane timestep i j pressure\n");
   const int order = m_mesh->getOrder();
+
+  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+
+  float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
 
   for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
     float x = m_mesh->nodeCoord(nodeIndex, 0);
     float y = m_mesh->nodeCoord(nodeIndex, 1);
     float z = m_mesh->nodeCoord(nodeIndex, 2);
 
-    float pressure = pnGlobal(nodeIndex, i1);
-    fprintf(file, "%d %d %f %f %f\n", slice_num, timestep, x, y, pressure);
+    if (z == srcz) {
+      fprintf(file, "xy %d %f %f %f\n", timestep, x, y, pnGlobal(nodeIndex, i1));
+    }
+    if (y == srcy) {
+      fprintf(file, "xz %d %f %f %f\n", timestep, x, z, pnGlobal(nodeIndex, i1));
+    }
+    if (x == srcx) {
+      fprintf(file, "yz %d %f %f %f\n", timestep, y, z, pnGlobal(nodeIndex, i1));
+    }
   }
+
   fclose(file);
 }
 
@@ -189,7 +206,6 @@ void SEMproxy::saveSnapshot(int timestep) {
 
   fprintf(file, "snap timestep x y z pressure\n");
   const int order = m_mesh->getOrder();
-
   for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
     float x = m_mesh->nodeCoord(nodeIndex, 0);
     float y = m_mesh->nodeCoord(nodeIndex, 1);
@@ -224,6 +240,8 @@ void SEMproxy::run()
                                      pnGlobal, "pnGlobal");
       if (is_snapshots_)
         saveSnapshot(indexTimeSample);
+      if (is_slices_)
+        saveSlice(indexTimeSample);
     }
 
     // Save pressure at receiver
