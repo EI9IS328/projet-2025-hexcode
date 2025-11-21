@@ -187,9 +187,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 void SEMproxy::saveSismo(int timestep)
 {
-  FILE *file = fopen("receiver_output.txt", "a+");
+  FILE *file = fopen("../data/sismo.csv", "a+");
   if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", "receiver_output.txt");
+    fprintf(stderr, "Couldn't open file %s\n", "../data/sismo.csv");
     exit(EXIT_FAILURE);
   }
 
