@@ -13,6 +13,6 @@ data2 = data.loc[data["nb"]==nRecv,:]
 plt.plot(data2["time"],data2["pression"])
 plt.xlabel("Time(ms)")
 plt.ylabel("Pression")
-plt.title("Pression calculé en fonction du temps")
-plt.savefig('zae.png', bbox_inches='tight')
+plt.title("Pression calculé en fonction du temps pour Recv numéro "+sys.argv[2])
+plt.savefig("Recv_"+sys.argv[2] + ".png", bbox_inches='tight')
 
