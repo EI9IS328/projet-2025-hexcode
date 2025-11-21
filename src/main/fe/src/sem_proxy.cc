@@ -105,6 +105,18 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 
+  // save parameters
+  is_snapshots_ = opt.isSnapshot;
+  snap_time_interval_ = opt.snapTimeInterval;
+  // Get unique filename
+  time_t rawtime;
+  struct tm * timeinfo;
+  char buffer[100];
+  time (&rawtime);
+  timeinfo = localtime(&rawtime);
+  strftime(buffer,sizeof(buffer),"../data/snapshots/snapshot_%d-%m-%Y-%H:%M:%S.csv",timeinfo);
+  filename_ = buffer;
+
   // time parameters
   if (opt.autodt)
   {
@@ -208,6 +220,28 @@ void proxyNodeCoord(std::array<int,3>){
   
 }
 
+void SEMproxy::saveSnapshot(int timestep) {
+  FILE *file = fopen(filename_.c_str(), "a+");
+  if (!file) {
+    fprintf(stderr, "Couldn't open file %s\n", filename_.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  fprintf(file, "snap timestep x y z pressure\n");
+  const int snapshot_num = timestep / snap_time_interval_;
+  const int order = m_mesh->getOrder();
+
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+    float pressure = pnGlobal(nodeIndex, i1);
+    fprintf(file, "%d %d %f %f %f %f\n", snapshot_num, timestep, x, y, z, pressure);
+  }
+  fclose(file);
+}
+
 void SEMproxy::run()
 {
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
@@ -225,10 +259,12 @@ void SEMproxy::run()
 
     startOutputTime = system_clock::now();
 
-    if (indexTimeSample % 50 == 0)
+    if (indexTimeSample % snap_time_interval_ == 0)
     {
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
+      if (is_snapshots_)
+        saveSnapshot(indexTimeSample);
     }
 
     if(selectPoint.size() > 0){
