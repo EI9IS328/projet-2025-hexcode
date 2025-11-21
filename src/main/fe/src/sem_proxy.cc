@@ -108,6 +108,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // save parameters
   is_snapshots_ = opt.isSnapshot;
   snap_time_interval_ = opt.snapTimeInterval;
+  data_folder_ = "../data/";
   // Get unique filename
   time_t rawtime;
   struct tm * timeinfo;
@@ -155,7 +156,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 void SEMproxy::saveSlice(int timestep) {
   const int slice_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "slices/slice_"
-                    + date_ + to_string(slice_num) + ".csv";
+                    + date_ + "_" + to_string(slice_num) + ".csv";
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
@@ -179,7 +180,7 @@ void SEMproxy::saveSlice(int timestep) {
 void SEMproxy::saveSnapshot(int timestep) {
   const int snapshot_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "snapshots/snapshot_"
-                    + date_ + to_string(snapshot_num) + ".csv";
+                    + date_ + "_" + to_string(snapshot_num) + ".csv";
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
