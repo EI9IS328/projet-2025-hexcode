@@ -108,14 +108,15 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // save parameters
   is_snapshots_ = opt.isSnapshot;
   snap_time_interval_ = opt.snapTimeInterval;
+  data_folder_ = "../data/";
   // Get unique filename
   time_t rawtime;
   struct tm * timeinfo;
   char buffer[100];
   time (&rawtime);
   timeinfo = localtime(&rawtime);
-  strftime(buffer,sizeof(buffer),"../data/snapshots/snapshot_%d-%m-%Y-%H:%M:%S.csv",timeinfo);
-  filename_ = buffer;
+  strftime(buffer,sizeof(buffer),"%d-%m-%Y-%H:%M:%S",timeinfo);
+  date_ = buffer;
 
   // time parameters
   if (opt.autodt)
@@ -152,15 +153,41 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 }
 
-void SEMproxy::saveSnapshot(int timestep) {
-  FILE *file = fopen(filename_.c_str(), "a+");
+void SEMproxy::saveSlice(int timestep) {
+  const int slice_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "slices/slice_"
+                    + date_ + "_" + to_string(slice_num) + ".csv";
+  FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", filename_.c_str());
+    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  fprintf(file, "snap timestep x y pressure\n");
+  const int order = m_mesh->getOrder();
+
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+    float pressure = pnGlobal(nodeIndex, i1);
+    fprintf(file, "%d %d %f %f %f\n", slice_num, timestep, x, y, pressure);
+  }
+  fclose(file);
+}
+
+void SEMproxy::saveSnapshot(int timestep) {
+  const int snapshot_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "snapshots/snapshot_"
+                    + date_ + "_" + to_string(snapshot_num) + ".csv";
+  FILE *file = fopen(filename.c_str(), "a+");
+  if (!file) {
+    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
     exit(EXIT_FAILURE);
   }
 
   fprintf(file, "snap timestep x y z pressure\n");
-  const int snapshot_num = timestep / snap_time_interval_;
   const int order = m_mesh->getOrder();
 
   for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
