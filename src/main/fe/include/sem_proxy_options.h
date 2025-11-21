@@ -26,6 +26,9 @@ class SemProxyOptions
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
+  // snapshots
+  bool isSnapshot = false;
+  int snapTimeInterval = 50;
 
   void validate() const
   {
@@ -71,6 +74,9 @@ class SemProxyOptions
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "s,save-snapshot", "Save snapshots", cxxopts::value<bool>(o.isSnapshot))(
+        "save-interval", "Number of time steps between snapshots",
+        cxxopts::value<int>(o.snapTimeInterval));
   }
 };
