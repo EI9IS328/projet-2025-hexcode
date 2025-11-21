@@ -130,9 +130,15 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
       if(!(iss >> x >> y >> z)){
         throw std::runtime_error("Error reading receiver coordinates from file.");
       }
-
-      if(x < 0 || x >= nb_nodes_[0] || y < 0 || y >= nb_nodes_[1] || z < 0 || z >= nb_nodes_[2]){
-        throw std::runtime_error("Receiver coordinates out of bounds.");
+      bool validPoint = false;
+      for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+        if(x == m_mesh->nodeCoord(nodeIndex, 0) && y == m_mesh->nodeCoord(nodeIndex, 1) && z == m_mesh->nodeCoord(nodeIndex, 2)){
+          validPoint = true;
+          break;
+        }
+      }
+      if(!validPoint){
+        throw std::runtime_error("Receiver coordinate does not match any mesh node.");
       }
 
       selectPoint.push_back({x, y, z});
@@ -175,17 +181,24 @@ void SEMproxy::saveSismo(int timestep)
     exit(EXIT_FAILURE);
   }
 
-  fprintf(file, "sismo timestep x y z pressure\n");
+  if(timestep == 0){
+    fprintf(file, "Index TimeStep X Y Z Pressure\n");
+  }
+
+  const int order = m_mesh->getOrder();
+  float pressure = 0;
 
   for (int i = 0; i < selectPoint.size(); i++) {
     std::array<int, 3> point = selectPoint[i];
     int x = point[0];
     int y = point[1];
     int z = point[2];
-
-    int nodeIdx = x + y * nb_nodes_[0] + z * nb_nodes_[0] * nb_nodes_[1];
-    float pressure = pnGlobal(nodeIdx, i2);
-
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      if(x == m_mesh->nodeCoord(nodeIndex, 0) && y == m_mesh->nodeCoord(nodeIndex, 1) && z == m_mesh->nodeCoord(nodeIndex, 2)){
+        pressure = pnGlobal(nodeIndex, i1);
+        break;
+      }
+    }
     fprintf(file, "%d %d %d %d %d %f\n",i, timestep, x, y, z, pressure);
   }
   fclose(file);
