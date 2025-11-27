@@ -78,6 +78,8 @@ class SEMproxy
 
   void saveSismo(int timestep);
 
+  void saveMesure(float mesure,const char* mesureName,const char* mesureType);
+
  private:
   int i1 = 0;
   int i2 = 1;

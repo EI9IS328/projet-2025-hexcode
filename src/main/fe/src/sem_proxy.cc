@@ -114,7 +114,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   char buffer[100];
   time (&rawtime);
   timeinfo = localtime(&rawtime);
-  strftime(buffer,sizeof(buffer),"../data/snapshots/snapshot_%d-%m-%Y-%H:%M:%S.csv",timeinfo);
+  strftime(buffer,sizeof(buffer),"_%d-%m-%Y-%H:%M:%S.csv",timeinfo);
   filename_ = buffer;
 
   // time parameters
@@ -187,9 +187,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 void SEMproxy::saveSismo(int timestep)
 {
-  FILE *file = fopen("../data/sismo.csv", "a+");
+  string filename = "../data/sismos/sismo" + filename_;
+  FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", "../data/sismo.csv");
+    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
     exit(EXIT_FAILURE);
   }
 
@@ -216,14 +217,24 @@ void SEMproxy::saveSismo(int timestep)
   fclose(file);
 }
 
-void proxyNodeCoord(std::array<int,3>){
-  
+void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesureType){
+  //"../data/mesures.csv" + filename_
+  string filename = "../data/mesures/mesure" + filename_;
+  FILE *file = fopen(filename.c_str(), "a+");
+  if (!file) {
+    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
+    exit(EXIT_FAILURE);
+  }
+  fprintf(file,"%f %s %s\n",mesure,mesureName,mesureType);
+
+  fclose(file);
 }
 
 void SEMproxy::saveSnapshot(int timestep) {
-  FILE *file = fopen(filename_.c_str(), "a+");
+  string filename = "../data/snapshots/snapshot" + filename_;
+  FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", filename_.c_str());
+    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
     exit(EXIT_FAILURE);
   }
 
@@ -244,8 +255,9 @@ void SEMproxy::saveSnapshot(int timestep) {
 
 void SEMproxy::run()
 {
+  saveMesure(m_mesh->getNumberOfNodes(),"Node","number");
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
-      totalOutputTime;
+      totalOutputTimeOneStep,totalOutputTime,tmp1,tmp2;
 
   SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement,
                                    rhsWeights);
@@ -256,6 +268,12 @@ void SEMproxy::run()
     startComputeTime = system_clock::now();
     m_solver->computeOneStep(dt_, indexTimeSample, solverData);
     totalComputeTime += system_clock::now() - startComputeTime;
+
+    if(indexTimeSample == 0){
+      tmp1 += system_clock::now() - startComputeTime;
+      float kernelTimeOneStep_ms = time_point_cast<microseconds>(tmp1).time_since_epoch().count();
+      saveMesure(kernelTimeOneStep_ms,"computeOneStep","time_ms");
+    }
 
     startOutputTime = system_clock::now();
 
@@ -297,15 +315,25 @@ void SEMproxy::run()
     auto tmp = solverData.m_i1;
     solverData.m_i1 = solverData.m_i2;
     solverData.m_i2 = tmp;
-
     totalOutputTime += system_clock::now() - startOutputTime;
+
+    if(indexTimeSample == 0){
+      tmp2 += system_clock::now() - startOutputTime;
+      float outputTimeOneStep_ms = time_point_cast<microseconds>(tmp2).time_since_epoch().count();
+      saveMesure(outputTimeOneStep_ms,"OutputTimeOneStep","time_ms");
+    }
   }
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
                             .count();
+  
+  saveMesure(kerneltime_ms,"kernel","time_ms");
+
   float outputtime_ms =
       time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
+
+  saveMesure(outputtime_ms,"output","time_ms");
 
   cout << "------------------------------------------------ " << endl;
   cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."
