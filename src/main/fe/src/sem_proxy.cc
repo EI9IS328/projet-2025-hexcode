@@ -115,7 +115,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   time (&rawtime);
   timeinfo = localtime(&rawtime);
   strftime(buffer,sizeof(buffer),"_%d-%m-%Y-%H:%M:%S.csv",timeinfo);
-  filename_ = buffer;
+  filenameDate = buffer;
 
   // time parameters
   if (opt.autodt)
@@ -187,7 +187,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 void SEMproxy::saveSismo(int timestep)
 {
-  string filename = "../data/sismos/sismo" + filename_;
+  string filename = "../data/sismos/sismo" + filenameDate;
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
@@ -218,8 +218,8 @@ void SEMproxy::saveSismo(int timestep)
 }
 
 void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesureType){
-  //"../data/mesures.csv" + filename_
-  string filename = "../data/mesures/mesure" + filename_;
+  //"../data/mesures.csv" + filenameDate
+  string filename = "../data/mesures/mesure" + filenameDate;
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
@@ -231,7 +231,7 @@ void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesure
 }
 
 void SEMproxy::saveSnapshot(int timestep) {
-  string filename = "../data/snapshots/snapshot" + filename_;
+  string filename = "../data/snapshots/snapshot" + filenameDate;
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
