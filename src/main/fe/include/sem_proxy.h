@@ -100,6 +100,8 @@ class SEMproxy
   std::string data_folder_;
   std::string date_;
 
+  bool is_in_situ;
+
   // physics
   bool isElastic_;
 
@@ -126,7 +128,7 @@ class SEMproxy
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
 
-  std::vector<std::array<int, 3>> selectPoint;
+  std::vector<int> selectPoint;
 
   // initialize source and RHS
   void init_source();

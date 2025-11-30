@@ -32,6 +32,8 @@ class SemProxyOptions
   bool isSlice = false;
   int snapTimeInterval = 50;
 
+  bool isInSitu = false;
+
   void validate() const
   {
     if (order < 1) throw std::runtime_error("order must be >= 1");
@@ -81,6 +83,7 @@ class SemProxyOptions
         "s,save-snapshots", "Save snapshots", cxxopts::value<bool>(o.isSnapshot))(
         "save-interval", "Number of time steps between snapshots",
         cxxopts::value<int>(o.snapTimeInterval))(
-        "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice));
+        "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice))
+        ("in-situ", "Traitement in-situ", cxxopts::value<bool>(o.isInSitu));
   }
 };

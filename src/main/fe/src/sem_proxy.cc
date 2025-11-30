@@ -139,13 +139,14 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   if(selectPointFile.is_open()){
     std::string line;
     int x, y, z;
+    int nodeIndex;
     while(std::getline(selectPointFile, line)){
       std::istringstream iss(line);
       if(!(iss >> x >> y >> z)){
         throw std::runtime_error("Error reading receiver coordinates from file.");
       }
       bool validPoint = false;
-      for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      for (nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
         if(x == m_mesh->nodeCoord(nodeIndex, 0) && y == m_mesh->nodeCoord(nodeIndex, 1) && z == m_mesh->nodeCoord(nodeIndex, 2)){
           validPoint = true;
           break;
@@ -155,14 +156,14 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         throw std::runtime_error("Receiver coordinate does not match any mesh node.");
       }
 
-      selectPoint.push_back({x, y, z});
+      selectPoint.push_back(nodeIndex);
     }
     selectPointFile.close();
 
 
   }
 
-
+  is_in_situ = opt.isInSitu;
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
                                          modelLocation, physicType, order);
@@ -201,21 +202,8 @@ void SEMproxy::saveSismo(int timestep)
     fprintf(file, "Index TimeStep X Y Z Pressure\n");
   }
 
-  const int order = m_mesh->getOrder();
-  float pressure = 0;
-
   for (int i = 0; i < selectPoint.size(); i++) {
-    std::array<int, 3> point = selectPoint[i];
-    int x = point[0];
-    int y = point[1];
-    int z = point[2];
-    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
-      if(x == m_mesh->nodeCoord(nodeIndex, 0) && y == m_mesh->nodeCoord(nodeIndex, 1) && z == m_mesh->nodeCoord(nodeIndex, 2)){
-        pressure = pnGlobal(nodeIndex, i1);
-        break;
-      }
-    }
-    fprintf(file, "%d %d %d %d %d %f\n",i, timestep, x, y, z, pressure);
+    fprintf(file, "%d %d %d %d %d %f\n",i, timestep,  m_mesh->nodeCoord(i, 0),  m_mesh->nodeCoord(i, 1), m_mesh->nodeCoord(i, 2), pnGlobal(selectPoint[i], i1));
   }
   fclose(file);
 }
@@ -299,6 +287,9 @@ void SEMproxy::saveSnapshot(int timestep) {
 
 void SEMproxy::run()
 {
+  std::vector<std::tuple<int, int, float, float, float, float>> snapshots;
+  std::vector<std::tuple<int, int, int, int, int, float>> sismos;
+
   saveMesure(m_mesh->getNumberOfNodes(),"Node","number");
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTimeOneStep,totalOutputTime,tmp1,tmp2;
@@ -325,14 +316,41 @@ void SEMproxy::run()
     {
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
-      if (is_snapshots_)
-        saveSnapshot(indexTimeSample);
+      if (is_snapshots_){
+        if(is_in_situ){
+          for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+            float x = m_mesh->nodeCoord(nodeIndex, 0);
+            float y = m_mesh->nodeCoord(nodeIndex, 1);
+            float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+            float pressure = pnGlobal(nodeIndex, i1);
+            snapshots.push_back({indexTimeSample / snap_time_interval_, indexTimeSample, x, y, z, pressure});
+          }
+        }
+        else{
+          saveSnapshot(indexTimeSample);
+        }     
+      }
+      
+
       if (is_slices_)
         saveSlice(indexTimeSample);
     }
 
     if(selectPoint.size() > 0){
-      saveSismo(indexTimeSample);
+      if(is_in_situ){
+        for (int i = 0; i < selectPoint.size(); i++) {
+          float x = m_mesh->nodeCoord(i, 0);
+          float y = m_mesh->nodeCoord(i, 1);
+          float z = m_mesh->nodeCoord(i, 2);
+
+          sismos.push_back({i, indexTimeSample, x, y, z, pnGlobal(i, i1)});
+        }
+      }
+      else{
+        saveSismo(indexTimeSample);
+      }
+      
     }
 
     // Save pressure at receiver
