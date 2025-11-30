@@ -75,6 +75,7 @@ class SEMproxy
   float find_cfl_dt(float cfl_factor);
 
   void saveSnapshot(int timestep);
+  void saveSlice(int timestep);
 
   void saveSismo(int timestep);
 
@@ -94,9 +95,10 @@ class SEMproxy
 
   // snapshots
   bool is_snapshots_;
+  bool is_slices_;
   int snap_time_interval_;
-  std::string snap_folder_;
-  std::string filenameDate;
+  std::string data_folder_;
+  std::string date_;
 
   // physics
   bool isElastic_;

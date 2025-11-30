@@ -107,15 +107,17 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   // save parameters
   is_snapshots_ = opt.isSnapshot;
+  is_slices_ = opt.isSlice;
   snap_time_interval_ = opt.snapTimeInterval;
+  data_folder_ = "../data/";
   // Get unique filename
   time_t rawtime;
   struct tm * timeinfo;
   char buffer[100];
   time (&rawtime);
   timeinfo = localtime(&rawtime);
-  strftime(buffer,sizeof(buffer),"_%d-%m-%Y-%H:%M:%S.csv",timeinfo);
-  filenameDate = buffer;
+  strftime(buffer,sizeof(buffer),"%d-%m-%Y-%H:%M:%S",timeinfo);
+  date_ = buffer;
 
   // time parameters
   if (opt.autodt)
@@ -187,7 +189,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 void SEMproxy::saveSismo(int timestep)
 {
-  string filename = "../data/sismos/sismo" + filenameDate;
+  string filename = data_folder_ + "sismos/sismo_"
+                    + date_ + ".csv";
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
@@ -219,7 +222,8 @@ void SEMproxy::saveSismo(int timestep)
 
 void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesureType){
   //"../data/mesures.csv" + filenameDate
-  string filename = "../data/mesures/mesure" + filenameDate;
+  string filename = data_folder_ + "mesures/mesure_"
+                    + date_ + ".csv";
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
@@ -230,8 +234,50 @@ void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesure
   fclose(file);
 }
 
+void SEMproxy::saveSlice(int timestep) {
+  const int slice_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "slices/slice_"
+                    + date_ + "_" + to_string(slice_num) + ".csv";
+  FILE *file = fopen(filename.c_str(), "a+");
+  if (!file) {
+    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  fprintf(file, "plane timestep i j pressure\n");
+  const int order = m_mesh->getOrder();
+
+  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+
+  float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
+
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+    if (z == srcz) {
+      fprintf(file, "xy %d %f %f %f\n", timestep, x, y, pnGlobal(nodeIndex, i1));
+    }
+    if (y == srcy) {
+      fprintf(file, "xz %d %f %f %f\n", timestep, x, z, pnGlobal(nodeIndex, i1));
+    }
+    if (x == srcx) {
+      fprintf(file, "yz %d %f %f %f\n", timestep, y, z, pnGlobal(nodeIndex, i1));
+    }
+  }
+
+  fclose(file);
+}
+
 void SEMproxy::saveSnapshot(int timestep) {
-  string filename = "../data/snapshots/snapshot" + filenameDate;
+  const int snapshot_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "snapshots/snapshot_"
+                    + date_ + "_" + to_string(snapshot_num) + ".csv";
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
@@ -239,9 +285,7 @@ void SEMproxy::saveSnapshot(int timestep) {
   }
 
   fprintf(file, "snap timestep x y z pressure\n");
-  const int snapshot_num = timestep / snap_time_interval_;
   const int order = m_mesh->getOrder();
-
   for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
     float x = m_mesh->nodeCoord(nodeIndex, 0);
     float y = m_mesh->nodeCoord(nodeIndex, 1);
@@ -283,6 +327,8 @@ void SEMproxy::run()
                                      pnGlobal, "pnGlobal");
       if (is_snapshots_)
         saveSnapshot(indexTimeSample);
+      if (is_slices_)
+        saveSlice(indexTimeSample);
     }
 
     if(selectPoint.size() > 0){
