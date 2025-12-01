@@ -261,6 +261,7 @@ __marimo__/
 
 *.swp
 *snapshot*
+*slice*
 *~
 compile_commands.json
 src/LvArra*
@@ -274,3 +275,5 @@ receiver.dat
 
 *.err
 benchmark_comparison.png
+
+data/*
