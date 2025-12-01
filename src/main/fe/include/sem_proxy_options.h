@@ -16,6 +16,7 @@ class SemProxyOptions
   std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
+  std::string receiverfilename = "";
   float dt = 0.001;
   float timemax = 1.5;
   bool autodt = false;
@@ -30,6 +31,8 @@ class SemProxyOptions
   bool isSnapshot = false;
   bool isSlice = false;
   int snapTimeInterval = 50;
+
+  bool isInSitu = false;
 
   void validate() const
   {
@@ -56,7 +59,8 @@ class SemProxyOptions
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))(
         "implem", "Implementation: makutu|shiva",
         cxxopts::value<std::string>(o.implem))(
-        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))(
+        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))
+        ("rf", "a file contain receiver position", cxxopts::value<std::string>(o.receiverfilename))(
         "mesh", "Mesh: cartesian|ucartesian",
         cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)",
@@ -79,6 +83,7 @@ class SemProxyOptions
         "s,save-snapshots", "Save snapshots", cxxopts::value<bool>(o.isSnapshot))(
         "save-interval", "Number of time steps between snapshots",
         cxxopts::value<int>(o.snapTimeInterval))(
-        "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice));
+        "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice))
+        ("in-situ", "Traitement in-situ", cxxopts::value<bool>(o.isInSitu));
   }
 };

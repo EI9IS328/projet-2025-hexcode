@@ -77,6 +77,10 @@ class SEMproxy
   void saveSnapshot(int timestep);
   void saveSlice(int timestep);
 
+  void saveSismo(int timestep);
+
+  void saveMesure(float mesure,const char* mesureName,const char* mesureType);
+
  private:
   int i1 = 0;
   int i2 = 1;
@@ -95,6 +99,8 @@ class SEMproxy
   int snap_time_interval_;
   std::string data_folder_;
   std::string date_;
+
+  bool is_in_situ;
 
   // physics
   bool isElastic_;
@@ -121,6 +127,8 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
+
+  std::vector<int> selectPoint;
 
   // initialize source and RHS
   void init_source();

@@ -31,6 +31,7 @@ void compute(SEMproxy &semsim)
        << endl;
 };
 
+//  LOGAN TODO  : 
 void compute_loop(SEMproxy &semsim) { compute(semsim); }
 
 int main(int argc, char *argv[])
@@ -51,7 +52,6 @@ int main(int argc, char *argv[])
 
     SemProxyOptions opt;
     SemProxyOptions::bind_cli(options, opt);
-
     auto result = options.parse(argc, argv);
 
     if (result.count("help"))
@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
     cout << "+==================================+" << endl;
     cout << "| Initializing SEM Application ... |" << endl;
     cout << "+==================================+\n" << endl;
+
 
     SEMproxy semsim(opt);
 
