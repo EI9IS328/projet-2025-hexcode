@@ -105,12 +105,13 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 
-  // save parameters
-  is_snapshots_ = opt.isSnapshot;
-  is_slices_ = opt.isSlice;
-  snap_time_interval_ = opt.snapTimeInterval;
-  data_folder_ = "../data/";
-  // Get unique filename
+  // Get unique data filder name
+
+  namespace fs = std::filesystem;
+  fs::path rootDir = "data";
+  fs::create_directories(rootDir);
+
+
   time_t rawtime;
   struct tm * timeinfo;
   char buffer[100];
@@ -118,6 +119,22 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   timeinfo = localtime(&rawtime);
   strftime(buffer,sizeof(buffer),"%d-%m-%Y-%H:%M:%S",timeinfo);
   date_ = buffer;
+
+
+  std::string datedFolder = "data_" + date_;
+  fs::path runDir = rootDir / datedFolder;
+  fs::create_directories(runDir);
+
+  fs::create_directories(runDir / "slices");
+  fs::create_directories(runDir / "snapshots");
+  fs::create_directories(runDir / "sismos");
+
+  // save parameters
+  is_snapshots_ = opt.isSnapshot;
+  is_slices_ = opt.isSlice;
+  snap_time_interval_ = opt.snapTimeInterval;
+  is_in_situ = opt.isInSitu;
+  data_folder_ = "data/data_" + date_ + "/";
 
   // time parameters
   if (opt.autodt)
@@ -163,8 +180,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   }
 
-  is_in_situ = opt.isInSitu;
-
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
                                          modelLocation, physicType, order);
   m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge,
@@ -188,15 +203,21 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 }
 
-void SEMproxy::saveSismo(int timestep)
-{
-  string filename = data_folder_ + "sismos/sismo_"
-                    + date_ + ".csv";
+FILE* open_file(string filename){
   FILE *file = fopen(filename.c_str(), "a+");
   if (!file) {
     fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
     exit(EXIT_FAILURE);
   }
+  return file;
+}
+
+
+
+void SEMproxy::saveSismo(int timestep)
+{
+  string filename = data_folder_ + "sismos/sismo.csv";
+  FILE *file = open_file(filename);
 
   if(timestep == 0){
     fprintf(file, "Index TimeStep X Y Z Pressure\n");
@@ -207,16 +228,30 @@ void SEMproxy::saveSismo(int timestep)
   fclose(file);
 }
 
-void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesureType){
-  //"../data/mesures.csv" + filenameDate
-  string filename = data_folder_ + "mesures/mesure_"
-                    + date_ + ".csv";
-  FILE *file = fopen(filename.c_str(), "a+");
-  if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
-    exit(EXIT_FAILURE);
+void SEMproxy::saveMeasure(float measure, const char* measureName) {
+  string filename = data_folder_ + "measure.csv";
+  FILE *file = open_file(filename);
+
+  fseek(file, 0, SEEK_END);
+  if (ftell(file) == 0) {
+    fprintf(file, "measure name\n");
   }
-  fprintf(file,"%f %s %s\n",mesure,mesureName,mesureType);
+
+  fprintf(file, "%f %s\n", measure, measureName);
+
+  fclose(file);
+}
+
+void SEMproxy::saveAnalyse(float analysis, const char* analysisName) {
+  string filename = data_folder_ + "analysis.csv";
+  FILE *file = open_file(filename);
+
+  fseek(file, 0, SEEK_END);
+  if (ftell(file) == 0) {
+    fprintf(file, "analysis name\n");
+  }
+
+  fprintf(file, "%f %s\n", analysis, analysisName);
 
   fclose(file);
 }
@@ -224,12 +259,8 @@ void SEMproxy::saveMesure(float mesure,const char* mesureName,const char* mesure
 void SEMproxy::saveSlice(int timestep) {
   const int slice_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "slices/slice_"
-                    + date_ + "_" + to_string(slice_num) + ".csv";
-  FILE *file = fopen(filename.c_str(), "a+");
-  if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
-    exit(EXIT_FAILURE);
-  }
+                     + to_string(slice_num) + ".csv";
+  FILE *file = open_file(filename);
 
   fprintf(file, "plane timestep i j pressure\n");
   const int order = m_mesh->getOrder();
@@ -264,12 +295,8 @@ void SEMproxy::saveSlice(int timestep) {
 void SEMproxy::saveSnapshot(int timestep) {
   const int snapshot_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "snapshots/snapshot_"
-                    + date_ + "_" + to_string(snapshot_num) + ".csv";
-  FILE *file = fopen(filename.c_str(), "a+");
-  if (!file) {
-    fprintf(stderr, "Couldn't open file %s\n", filename.c_str());
-    exit(EXIT_FAILURE);
-  }
+                    + to_string(snapshot_num) + ".csv";
+  FILE *file = open_file(filename);
 
   fprintf(file, "snap timestep x y z pressure\n");
   const int order = m_mesh->getOrder();
@@ -294,7 +321,6 @@ void SEMproxy::run()
   
   std::vector<std::tuple<int,int,float>> sismos;
 
-  saveMesure(m_mesh->getNumberOfNodes(),"Node","number");
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTimeOneStep,totalOutputTime,tmp1,tmp2;
 
@@ -311,7 +337,7 @@ void SEMproxy::run()
     if(indexTimeSample == 0){
       tmp1 += system_clock::now() - startComputeTime;
       float kernelTimeOneStep_ms = time_point_cast<microseconds>(tmp1).time_since_epoch().count();
-      saveMesure(kernelTimeOneStep_ms,"computeOneStep","time_ms");
+      saveMeasure(kernelTimeOneStep_ms,"computeOneStep");
     }
 
     startOutputTime = system_clock::now();
@@ -342,9 +368,9 @@ void SEMproxy::run()
               mean += pressure;
           }
 
-          saveMesure(max, (std::string("max_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str(),"float");
-          saveMesure(min,(std::string("min_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str(),"float");
-          saveMesure(mean/m_mesh->getNumberOfNodes(),(std::string("mean_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str(),"float");
+          saveAnalyse(max, (std::string("max_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
+          saveAnalyse(min,(std::string("min_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
+          saveAnalyse(mean/m_mesh->getNumberOfNodes(),(std::string("mean_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
           float sd_somme = 0;
           for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
             float x = m_mesh->nodeCoord(nodeIndex, 0);
@@ -355,7 +381,7 @@ void SEMproxy::run()
 
             sd_somme += (pressure - mean) * (pressure - mean);
           }
-          saveMesure(sqrt(sd_somme/m_mesh->getNumberOfNodes()),(std::string("std_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str(),"float");
+          saveAnalyse(sqrt(sd_somme/m_mesh->getNumberOfNodes()),(std::string("std_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
         }
         else{
           saveSnapshot(indexTimeSample);
@@ -426,7 +452,7 @@ void SEMproxy::run()
     if(indexTimeSample == 0){
       tmp2 += system_clock::now() - startOutputTime;
       float outputTimeOneStep_ms = time_point_cast<microseconds>(tmp2).time_since_epoch().count();
-      saveMesure(outputTimeOneStep_ms,"OutputTimeOneStep","time_ms");
+      saveMeasure(outputTimeOneStep_ms,"OutputTimeOneStep");
     }
   }
 
@@ -437,10 +463,10 @@ void SEMproxy::run()
           sd_somme[idx] += (pressure - (meanPressurePerReceive[idx]/num_sample_)) * (pressure - (meanPressurePerReceive[idx]/num_sample_));
         }
         for(int i = 0; i < selectPoint.size(); i++){
-          saveMesure(maxPressurePerReceive[i],(std::string("max_pressure_at_receiver_") + to_string(i)).c_str(),"float");
-          saveMesure(minPressurePerReceive[i],(std::string("min_pressure_at_receiver_") + to_string(i)).c_str(),"float");
-          saveMesure(meanPressurePerReceive[i]/num_sample_,(std::string("mean_pressure_at_time_") + to_string(i)).c_str(),"float");
-          saveMesure(sqrt(sd_somme[i]/num_sample_),(std::string("std_pressure_at_receiver_") + to_string(i)).c_str(),"float");
+          saveAnalyse(maxPressurePerReceive[i],(std::string("max_pressure_at_receiver_") + to_string(i)).c_str());
+          saveAnalyse(minPressurePerReceive[i],(std::string("min_pressure_at_receiver_") + to_string(i)).c_str());
+          saveAnalyse(meanPressurePerReceive[i]/num_sample_,(std::string("mean_pressure_at_time_") + to_string(i)).c_str());
+          saveAnalyse(sqrt(sd_somme[i]/num_sample_),(std::string("std_pressure_at_receiver_") + to_string(i)).c_str());
         }
     }
   }
@@ -449,12 +475,12 @@ void SEMproxy::run()
                             .time_since_epoch()
                             .count();
   
-  saveMesure(kerneltime_ms,"kernel","time_ms");
+  saveMeasure(kerneltime_ms,"kernel");
 
   float outputtime_ms =
       time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
 
-  saveMesure(outputtime_ms,"output","time_ms");
+  saveMeasure(outputtime_ms,"output");
 
   cout << "------------------------------------------------ " << endl;
   cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."

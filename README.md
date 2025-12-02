@@ -45,6 +45,7 @@ mkdir build
 cd build
 cmake .. -DUSE_VECTOR=OFF -DUSE_KOKKOS=ON
 make install
+cd ..
 ```
 
 By default, this builds the applications in sequential mode using `std::vector`.
@@ -54,10 +55,10 @@ Both SEM and FD applications are compiled.
 
 ```sh
 # Run SEM simulation with 100 x 100 x 100 elements
-./src/main/semproxy -ex 100
+./build/bin/semproxy -ex 100
 
 # Run FD simulation
-./src/main/fdproxy
+./build/bin/fdproxy
 ```
 
 ---
