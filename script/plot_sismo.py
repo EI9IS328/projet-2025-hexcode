@@ -10,7 +10,6 @@ ids = df["Index"].unique()
 
 n_ids = len(ids)
 
-# Disposition automatique (carrée)
 cols = math.ceil(math.sqrt(n_ids))
 rows = math.ceil(n_ids / cols)
 
