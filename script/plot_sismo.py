@@ -2,22 +2,30 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys 
+import math
 
 file = sys.argv[1]
 df = pd.read_csv(file,sep=" ")  
 ids = df["Index"].unique()
 
-plt.figure(figsize=(14,6))
+n_ids = len(ids)
 
-# Boucle pour tracer une courbe par id
-for sensor_id in ids:
+# Disposition automatique (carrée)
+cols = math.ceil(math.sqrt(n_ids))
+rows = math.ceil(n_ids / cols)
+
+plt.figure(figsize=(10,10))
+
+for i, sensor_id in enumerate(ids, start=1):
     data = df[df["Index"] == sensor_id]
-    plt.plot(data["TimeStep"], data["Pressure"], label=f"ID {sensor_id}")
+    
+    plt.subplot(rows, cols, i)
+    plt.plot(data["Pressure"], data["TimeStep"])
+    plt.gca().invert_yaxis()
+    plt.title(f"ID {sensor_id}")
+    plt.xlabel("TimeStep")
+    plt.ylabel("Pressure")
+    plt.grid(True)
 
-plt.title("Pression sismique par capteur")
-plt.xlabel("Temps")
-plt.ylabel("Pression")
-plt.grid(True)
-plt.legend(title="Capteurs")
 plt.tight_layout()
 plt.show()
