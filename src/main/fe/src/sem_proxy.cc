@@ -242,16 +242,16 @@ void SEMproxy::saveMeasure(float measure, const char* measureName) {
   fclose(file);
 }
 
-void SEMproxy::saveAnalyse(float analysis, const char* analysisName) {
-  string filename = data_folder_ + "analysis.csv";
+void SEMproxy::saveAnalyse(int index, float min, float max, float mean, float median, float std ,const char* analysisType ) {
+  string filename = data_folder_ + analysisType + "_" +  "analysis.csv";
   FILE *file = open_file(filename);
 
   fseek(file, 0, SEEK_END);
   if (ftell(file) == 0) {
-    fprintf(file, "analysis name\n");
+    fprintf(file, "index analysis min max mean median std\n");
   }
 
-  fprintf(file, "%f %s\n", analysis, analysisName);
+  fprintf(file, "%d %g %g %g %g %g\n",index, min, max, mean, median, std );
 
   fclose(file);
 }
@@ -319,8 +319,7 @@ void SEMproxy::run()
 
   float sd_sommePerReceive[selectPoint.size()] = {0};
   
-  std::vector<std::tuple<int,int,float>> sismos;
-
+  float sismos[selectPoint.size()][num_sample_];
   time_point<system_clock> startComputeTime, startOutputTime,startTraitementTime, totalTraitementTime, totalComputeTime,
       totalOutputTimeOneStep,totalOutputTime,tmp1,tmp2;
 
@@ -339,8 +338,6 @@ void SEMproxy::run()
       float kernelTimeOneStep_ms = time_point_cast<microseconds>(tmp1).time_since_epoch().count();
       saveMeasure(kernelTimeOneStep_ms,"computeOneStep");
     }
-
-    //Mesure analsyse in-situ
     
     if(is_in_situ){
       if (indexTimeSample % snap_time_interval_ == 0 && is_snapshots_){
@@ -350,6 +347,9 @@ void SEMproxy::run()
           float max = -999;
           float min = 999;
           float mean = 0;
+
+          float list[m_mesh->getNumberOfNodes()];
+          float median = 0;
           for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
             float pressure = pnGlobal(nodeIndex, i1);
             if(pressure > max){
@@ -359,7 +359,13 @@ void SEMproxy::run()
               min = pressure;
             }
               mean += pressure;
+            
+            list[nodeIndex] = pressure;
           }
+
+          std::sort(list, list + m_mesh->getNumberOfNodes());
+
+          median = list[m_mesh->getNumberOfNodes()/2];
 
           float sd_somme = 0;
           for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
@@ -368,14 +374,12 @@ void SEMproxy::run()
             sd_somme += (pressure - mean) * (pressure - mean);
           }
 
+
           totalTraitementTime += system_clock::now() - startTraitementTime;
           
           startOutputTime = system_clock::now();
 
-          saveAnalyse(max, (std::string("max_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
-          saveAnalyse(min,(std::string("min_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
-          saveAnalyse(mean/m_mesh->getNumberOfNodes(),(std::string("mean_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
-          saveAnalyse(sqrt(sd_somme/m_mesh->getNumberOfNodes()),(std::string("std_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
+          saveAnalyse(indexTimeSample / snap_time_interval_,min,max,mean/m_mesh->getNumberOfNodes(),median,sqrt(sd_somme/m_mesh->getNumberOfNodes()),(std::string("snapshot")).c_str());
 
           totalOutputTime += system_clock::now() - startOutputTime;
       }
@@ -388,7 +392,7 @@ void SEMproxy::run()
 
           float pressure = pnGlobal(selectPoint[i], i1);
 
-          sismos.push_back({i,indexTimeSample,pnGlobal(selectPoint[i], i1)});
+          sismos[i][indexTimeSample] = pressure;
 
           if(pressure > maxPressurePerReceive[i]){
             maxPressurePerReceive[i] = pressure;
@@ -464,9 +468,16 @@ void SEMproxy::run()
 
         startTraitementTime = system_clock::now();
 
+        float medianes [selectPoint.size()];
+
+
         float sd_somme[selectPoint.size()] = {0};
-        for(const auto& [idx, timeStep, pressure] : sismos){
-          sd_somme[idx] += (pressure - (meanPressurePerReceive[idx]/num_sample_)) * (pressure - (meanPressurePerReceive[idx]/num_sample_));
+        for(int j = 0; j < selectPoint.size();j++){
+          for(int i = 0; i < num_sample_;i++){
+            sd_somme[j] += (sismos[j][i] - (meanPressurePerReceive[j]/num_sample_)) * (sismos[j][i] - (meanPressurePerReceive[j]/num_sample_));
+          }
+          std::sort(sismos[j], sismos[j] + num_sample_);
+          medianes[j] = sismos[j][num_sample_/2];
         }
 
         totalTraitementTime += system_clock::now() - startTraitementTime;
@@ -474,10 +485,7 @@ void SEMproxy::run()
         startOutputTime = system_clock::now();
 
         for(int i = 0; i < selectPoint.size(); i++){
-          saveAnalyse(maxPressurePerReceive[i],(std::string("max_pressure_at_receiver_") + to_string(i)).c_str());
-          saveAnalyse(minPressurePerReceive[i],(std::string("min_pressure_at_receiver_") + to_string(i)).c_str());
-          saveAnalyse(meanPressurePerReceive[i]/num_sample_,(std::string("mean_pressure_at_time_") + to_string(i)).c_str());
-          saveAnalyse(sqrt(sd_somme[i]/num_sample_),(std::string("std_pressure_at_receiver_") + to_string(i)).c_str());
+          saveAnalyse(i,minPressurePerReceive[i],minPressurePerReceive[i],meanPressurePerReceive[i]/num_sample_,medianes[i],sqrt(sd_somme[i]/num_sample_),(std::string("receiver")).c_str());
         }
 
         totalOutputTime += system_clock::now() - startOutputTime;
