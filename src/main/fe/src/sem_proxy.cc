@@ -126,6 +126,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   fs::create_directories(runDir);
 
   fs::create_directories(runDir / "slices");
+  fs::create_directories(runDir / "slice_images");
   fs::create_directories(runDir / "snapshots");
   fs::create_directories(runDir / "sismos");
 
@@ -199,8 +200,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   std::cout << "Order of approximation will be " << order << std::endl;
   std::cout << "Time step is " << dt_ << "s" << std::endl;
   std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
-
-
 }
 
 FILE* open_file(string filename){
@@ -211,8 +210,6 @@ FILE* open_file(string filename){
   }
   return file;
 }
-
-
 
 void SEMproxy::saveSismo(int timestep)
 {
@@ -256,6 +253,31 @@ void SEMproxy::saveAnalyse(float analysis, const char* analysisName) {
   fclose(file);
 }
 
+void SEMproxy::saveSliceAsPPM(int plane, std::array<float, 3UL> position, int timestep,
+                              ARRAY_REAL_VIEW pnGLobal, float maxValue, float minValue) {
+  const int slice_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "slice_images/slice_"
+                     + to_string(slice_num) + ".ppm";
+  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+  
+  std::array<float, 3UL> plane_src;
+  float srcx = (floor(position[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(position[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(position[2] / node_size_z)  + 1) * node_size_z;
+
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+    // TODO: Convert pressure to color
+  }
+
+  fclose(file);
+}
+
 void SEMproxy::saveSlice(int timestep) {
   const int slice_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "slices/slice_"
@@ -263,7 +285,6 @@ void SEMproxy::saveSlice(int timestep) {
   FILE *file = open_file(filename);
 
   fprintf(file, "plane timestep i j pressure\n");
-  const int order = m_mesh->getOrder();
 
   float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
   float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
