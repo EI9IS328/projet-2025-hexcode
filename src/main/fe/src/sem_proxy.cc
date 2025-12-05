@@ -220,7 +220,7 @@ void SEMproxy::saveSismo(int timestep)
   FILE *file = open_file(filename);
 
   if(timestep == 0){
-    fprintf(file, "Index TimeStep X Y Z Pressure\n");
+    fprintf(file, "index timestep x y z pressure\n");
   }
   for (int i = 0; i < selectPoint.size(); i++) {
     fprintf(file, "%d %d %f %f %f %f\n",i, timestep,  m_mesh->nodeCoord(selectPoint[i], 0),  m_mesh->nodeCoord(selectPoint[i], 1), m_mesh->nodeCoord(selectPoint[i], 2), pnGlobal(selectPoint[i], i1));
