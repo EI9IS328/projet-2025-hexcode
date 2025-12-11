@@ -251,7 +251,7 @@ void SEMproxy::saveAnalyse(int index, float min, float max, float mean, float me
     fprintf(file, "index analysis min max mean median std\n");
   }
 
-  fprintf(file, "%d %g %g %g %g %g\n",index, min, max, mean, median, std );
+  fprintf(file, "%d %f %f %f %f %f\n",index, min, max, mean, median, std );
 
   fclose(file);
 }
@@ -321,7 +321,7 @@ void SEMproxy::run()
   
   float sismos[selectPoint.size()][num_sample_];
   time_point<system_clock> startComputeTime, startOutputTime,startTraitementTime, totalTraitementTime, totalComputeTime,
-      totalOutputTimeOneStep,totalOutputTime,tmp1,tmp2;
+      totalOutputTimeOneStep,totalOutputTime;
 
   SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement,
                                    rhsWeights);
@@ -332,12 +332,6 @@ void SEMproxy::run()
     startComputeTime = system_clock::now();
     m_solver->computeOneStep(dt_, indexTimeSample, solverData);
     totalComputeTime += system_clock::now() - startComputeTime;
-
-    if(indexTimeSample == 0){
-      tmp1 += system_clock::now() - startComputeTime;
-      float kernelTimeOneStep_ms = time_point_cast<microseconds>(tmp1).time_since_epoch().count();
-      saveMeasure(kernelTimeOneStep_ms,"computeOneStep");
-    }
     
     if(is_in_situ){
       if (indexTimeSample % snap_time_interval_ == 0 && is_snapshots_){
@@ -456,11 +450,6 @@ void SEMproxy::run()
     
     totalOutputTime += system_clock::now() - startOutputTime;
 
-    // if(indexTimeSample == 0){
-    //   tmp2 += system_clock::now() - startOutputTime;
-    //   float outputTimeOneStep_ms = time_point_cast<microseconds>(tmp2).time_since_epoch().count();
-    //   saveMeasure(outputTimeOneStep_ms,"OutputTimeOneStep");
-    // }
   }
 
   if(is_in_situ){
