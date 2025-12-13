@@ -81,7 +81,7 @@ class SEMproxy
 
   void saveMeasure(float mesure,const char* mesureName);
 
-  void saveAnalyse(float analysis, const char* analysisName);
+  void saveAnalyse(int index, float min, float max, float mean, float median, float std ,const char* analysisType );
 
  private:
   int i1 = 0;
