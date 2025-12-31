@@ -29,9 +29,15 @@ class SemProxyOptions
   bool isElastic = false;
   // snapshots
   bool isSnapshot = false;
-  bool isSlice = false;
   int snapTimeInterval = 50;
-
+  // slices
+  bool isSlice = false;
+  bool isPPM = false;
+  int plane = 0; // 0:xy, 1:yz, 2:xz
+  float slice_posx = 1010.f;
+  float slice_posy = 1010.f;
+  float slice_posz = 1010.f;
+  // in situ analysis
   bool isInSitu = false;
 
   void validate() const
@@ -59,8 +65,8 @@ class SemProxyOptions
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))(
         "implem", "Implementation: makutu|shiva",
         cxxopts::value<std::string>(o.implem))(
-        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))
-        ("rf", "a file contain receiver position", cxxopts::value<std::string>(o.receiverfilename))(
+        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))(
+        "rf", "a file contain receiver position", cxxopts::value<std::string>(o.receiverfilename))(
         "mesh", "Mesh: cartesian|ucartesian",
         cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)",
@@ -83,7 +89,12 @@ class SemProxyOptions
         "s,save-snapshots", "Save snapshots", cxxopts::value<bool>(o.isSnapshot))(
         "save-interval", "Number of time steps between snapshots",
         cxxopts::value<int>(o.snapTimeInterval))(
-        "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice))
-        ("in-situ", "Traitement in-situ", cxxopts::value<bool>(o.isInSitu));
+        "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice))(
+        "in-situ", "Traitement in-situ", cxxopts::value<bool>(o.isInSitu))(
+        "save-ppm-slices", "Save slices as PPM images", cxxopts::value<bool>(o.isPPM))(
+        "plane", "Plane for PPM slice: 0=xy,1=yz,2=xz", cxxopts::value<int>(o.plane))(
+        "slice-posx", "X position of the slice (for PPM)", cxxopts::value<float>(o.slice_posx))(
+        "slice-posy", "Y position of the slice (for PPM)", cxxopts::value<float>(o.slice_posy))(
+        "slice-posz", "Z position of the slice (for PPM)", cxxopts::value<float>(o.slice_posz));
   }
 };

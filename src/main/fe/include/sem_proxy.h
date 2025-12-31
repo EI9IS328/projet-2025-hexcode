@@ -79,8 +79,7 @@ class SEMproxy
   void saveSismo(int timestep);
   void saveMeasure(float mesure,const char* mesureName);
   void saveAnalyse(float analysis, const char* analysisName);
-  void saveSliceAsPPM(int plane, std::array<float, 3UL> position,
-                      arrayReal pnGLobal, float maxValue, float minValue);
+  void saveSliceAsPPM(int timestep);
 
  private:
   int i1 = 0;
@@ -97,6 +96,9 @@ class SEMproxy
   // snapshots
   bool is_snapshots_;
   bool is_slices_;
+  bool is_ppm_slices_;
+  int plane_;
+  std::array<float, 3> slice_position_ = {0};
   int snap_time_interval_;
   std::string data_folder_;
   std::string date_;

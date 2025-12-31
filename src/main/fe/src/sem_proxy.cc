@@ -6,6 +6,7 @@
 //************************************************************************
 
 #include "sem_proxy.h"
+#include "ToPPMConverter.h"
 
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
@@ -136,6 +137,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   snap_time_interval_ = opt.snapTimeInterval;
   is_in_situ = opt.isInSitu;
   data_folder_ = "data/data_" + date_ + "/";
+  is_ppm_slices_ = opt.isPPM;
+  plane_ = opt.plane;
+  slice_position_[0] = opt.slice_posx;
+  slice_position_[1] = opt.slice_posy;
+  slice_position_[2] = opt.slice_posz;
 
   // time parameters
   if (opt.autodt)
@@ -253,8 +259,7 @@ void SEMproxy::saveAnalyse(float analysis, const char* analysisName) {
   fclose(file);
 }
 
-void SEMproxy::saveSliceAsPPM(int plane, std::array<float, 3UL> position, int timestep,
-                              ARRAY_REAL_VIEW pnGLobal, float maxValue, float minValue) {
+void SEMproxy::saveSliceAsPPM(int timestep) {
   const int slice_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "slice_images/slice_"
                      + to_string(slice_num) + ".ppm";
@@ -263,19 +268,14 @@ void SEMproxy::saveSliceAsPPM(int plane, std::array<float, 3UL> position, int ti
   float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
   
   std::array<float, 3UL> plane_src;
-  float srcx = (floor(position[0] / node_size_x) + 1) * node_size_x;
-  float srcy = (floor(position[1] / node_size_y)  + 1) * node_size_y;
-  float srcz = (floor(position[2] / node_size_z)  + 1) * node_size_z;
-
-  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
-    float x = m_mesh->nodeCoord(nodeIndex, 0);
-    float y = m_mesh->nodeCoord(nodeIndex, 1);
-    float z = m_mesh->nodeCoord(nodeIndex, 2);
-
-    // TODO: Convert pressure to color
-  }
-
-  fclose(file);
+  float srcx = (floor(slice_position_[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(slice_position_[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(slice_position_[2] / node_size_z)  + 1) * node_size_z;
+  std::array<float, 3UL> src_position;
+  src_position[0] = srcx;
+  src_position[1] = srcy;
+  src_position[2] = srcz;
+  ToPPMConverter::convert(filename, m_mesh, pnGlobal, i1, plane_, src_position, nb_nodes_);
 }
 
 void SEMproxy::saveSlice(int timestep) {
@@ -412,6 +412,8 @@ void SEMproxy::run()
 
       if (is_slices_)
         saveSlice(indexTimeSample);
+      if (is_ppm_slices_)
+        saveSliceAsPPM(indexTimeSample);
     }
 
     if(selectPoint.size() > 0){
