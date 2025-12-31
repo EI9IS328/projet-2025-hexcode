@@ -6,6 +6,7 @@
 //************************************************************************
 
 #include "sem_proxy.h"
+#include "ToPPMConverter.h"
 
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
@@ -126,6 +127,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   fs::create_directories(runDir);
 
   fs::create_directories(runDir / "slices");
+  fs::create_directories(runDir / "slice_images");
   fs::create_directories(runDir / "snapshots");
   fs::create_directories(runDir / "sismos");
 
@@ -135,6 +137,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   snap_time_interval_ = opt.snapTimeInterval;
   is_in_situ = opt.isInSitu;
   data_folder_ = "data/data_" + date_ + "/";
+  is_ppm_slices_ = opt.isPPM;
+  plane_ = opt.plane;
+  slice_position_[0] = opt.slice_posx;
+  slice_position_[1] = opt.slice_posy;
+  slice_position_[2] = opt.slice_posz;
 
   // time parameters
   if (opt.autodt)
@@ -199,8 +206,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   std::cout << "Order of approximation will be " << order << std::endl;
   std::cout << "Time step is " << dt_ << "s" << std::endl;
   std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
-
-
 }
 
 FILE* open_file(string filename){
@@ -211,8 +216,6 @@ FILE* open_file(string filename){
   }
   return file;
 }
-
-
 
 void SEMproxy::saveSismo(int timestep)
 {
@@ -256,6 +259,25 @@ void SEMproxy::saveAnalyse(int index, float min, float max, float mean, float me
   fclose(file);
 }
 
+void SEMproxy::saveSliceAsPPM(int timestep) {
+  const int slice_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "slice_images/slice_"
+                     + to_string(slice_num) + ".ppm";
+  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+  
+  std::array<float, 3UL> plane_src;
+  float srcx = (floor(slice_position_[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(slice_position_[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(slice_position_[2] / node_size_z)  + 1) * node_size_z;
+  std::array<float, 3UL> src_position;
+  src_position[0] = srcx;
+  src_position[1] = srcy;
+  src_position[2] = srcz;
+  ToPPMConverter::convert(filename, m_mesh, pnGlobal, i1, plane_, src_position, nb_nodes_);
+}
+
 void SEMproxy::saveSlice(int timestep) {
   const int slice_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "slices/slice_"
@@ -263,7 +285,6 @@ void SEMproxy::saveSlice(int timestep) {
   FILE *file = open_file(filename);
 
   fprintf(file, "plane timestep i j pressure\n");
-  const int order = m_mesh->getOrder();
 
   float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
   float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
@@ -409,12 +430,12 @@ void SEMproxy::run()
     {
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
-      if (is_snapshots_){
+      if (is_snapshots_)
         saveSnapshot(indexTimeSample);    
-      }
-
       if (is_slices_)
         saveSlice(indexTimeSample);
+      if (is_ppm_slices_)
+        saveSliceAsPPM(indexTimeSample);
     }
 
     if(selectPoint.size() > 0){
