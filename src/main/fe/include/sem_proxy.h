@@ -78,8 +78,8 @@ class SEMproxy
   void saveSlice(int timestep);
   void saveSismo(int timestep);
   void saveMeasure(float mesure,const char* mesureName);
-  void saveAnalyse(float analysis, const char* analysisName);
   void saveSliceAsPPM(int timestep);
+  void saveAnalyse(int index, float min, float max, float mean, float median, float std ,const char* analysisType );
 
  private:
   int i1 = 0;
