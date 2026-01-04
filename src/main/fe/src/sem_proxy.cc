@@ -251,7 +251,7 @@ void SEMproxy::saveAnalyse(int index, float min, float max, float mean, float me
 
   fseek(file, 0, SEEK_END);
   if (ftell(file) == 0) {
-    fprintf(file, "index analysis min max mean median std\n");
+    fprintf(file, "index min max mean median std\n");
   }
 
   fprintf(file, "%d %f %f %f %f %f\n",index, min, max, mean, median, std );
