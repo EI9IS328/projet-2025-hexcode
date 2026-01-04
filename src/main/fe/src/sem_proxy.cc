@@ -132,6 +132,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // save parameters
   is_snapshots_ = opt.isSnapshot;
   is_slices_ = opt.isSlice;
+  is_compress_ = opt.isCompress;
   snap_time_interval_ = opt.snapTimeInterval;
   is_in_situ = opt.isInSitu;
   data_folder_ = "data/data_" + date_ + "/";
@@ -311,6 +312,37 @@ void SEMproxy::saveSnapshot(int timestep) {
   fclose(file);
 }
 
+//https://gitlab.spack.io/kokkos/kokkos/-/blob/874f492f99d17d178d621eb85a19188c869a7b41/example/tutorial/02_simple_reduce/simple_reduce.cpp
+void SEMproxy::saveCompressSnapshot(int timestep){
+  int nodeIndex = 0;
+  const int snapshot_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "snapshots/snapshot_"
+                    + to_string(snapshot_num) + ".csv";
+  FILE *file = open_file(filename);
+  float pmin = std::numeric_limits<float>::max();
+  float pmax = std::numeric_limits<float>::min();
+  float dcompress;
+  const int order = m_mesh->getOrder();
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float pressure = pnGlobal(nodeIndex,i1);
+    pmin = std::min(pressure,pmin);
+    pmax = std::max(pressure,pmax);
+  }
+  dcompress = (pmax - pmin)/(std::pow(2,16)-1);
+  fprintf(file, "%f %f %f\n",pmin,pmax,dcompress);
+  fprintf(file, "snap timestep x y z pressure\n");
+
+  for(int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes();nodeIndex++){
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+    short pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
+    fprintf(file, "%d %d %f %f %f %hd\n", snapshot_num, timestep, x, y, z, pressure);
+  }
+  fclose(file);
+}
+
 void SEMproxy::run()
 {
   float maxPressurePerReceive[selectPoint.size()] = {-999};
@@ -384,7 +416,12 @@ void SEMproxy::run()
           saveAnalyse(sqrt(sd_somme/m_mesh->getNumberOfNodes()),(std::string("std_pressure_at_Snapchot_") + to_string(indexTimeSample / snap_time_interval_)).c_str());
         }
         else{
-          saveSnapshot(indexTimeSample);
+          if(is_compress_){
+            saveCompressSnapshot(indexTimeSample);
+          }
+          else{
+            //saveSnapshot(indexTimeSample);
+          }
         }     
       }
       

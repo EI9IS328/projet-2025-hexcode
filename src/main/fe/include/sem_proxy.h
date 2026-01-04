@@ -75,6 +75,14 @@ class SEMproxy
   float find_cfl_dt(float cfl_factor);
 
   void saveSnapshot(int timestep);
+
+  /**
+   * @brief Save compressed data of snapshot
+   * 
+   * @param timestep the timestep to save data
+   */
+  void saveCompressSnapshot(int timestep);
+
   void saveSlice(int timestep);
 
   void saveSismo(int timestep);
@@ -98,6 +106,7 @@ class SEMproxy
   // snapshots
   bool is_snapshots_;
   bool is_slices_;
+  bool is_compress_;
   int snap_time_interval_;
   std::string data_folder_;
   std::string date_;

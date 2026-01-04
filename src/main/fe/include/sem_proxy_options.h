@@ -30,6 +30,8 @@ class SemProxyOptions
   // snapshots
   bool isSnapshot = false;
   bool isSlice = false;
+  // compress
+  bool isCompress = false;
   int snapTimeInterval = 50;
 
   bool isInSitu = false;
@@ -84,6 +86,7 @@ class SemProxyOptions
         "save-interval", "Number of time steps between snapshots",
         cxxopts::value<int>(o.snapTimeInterval))(
         "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice))
-        ("in-situ", "Traitement in-situ", cxxopts::value<bool>(o.isInSitu));
+        ("in-situ", "Traitement in-situ", cxxopts::value<bool>(o.isInSitu))
+        ("compress","Save compress data",cxxopts::value<bool>(o.isCompress));
   }
 };

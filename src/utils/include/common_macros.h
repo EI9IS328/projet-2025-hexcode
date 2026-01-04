@@ -22,6 +22,33 @@
 #define LOOPEND }
 #endif
 
+//LOOPREDUCE
+
+
+#if defined(USE_KOKKOS)
+
+#define LOOPREDUCE_MINMAX(Range, Iterator, Min, Max)                    \
+  Kokkos::parallel_reduce(                                             \
+    Range,                                                              \
+    KOKKOS_CLASS_LAMBDA(                                                \
+      const int Iterator,                                               \
+      Kokkos::MinMax<std::decay_t<decltype(Min)>>::value_type& _mm_) {
+
+#define LOOPEND_MINMAX(Min, Max)                                        \
+    },                                                                  \
+    Kokkos::MinMax<std::decay_t<decltype(Min)>>(Min, Max));
+
+#else
+
+#define LOOPREDUCE_MINMAX(Range, Iterator, Min, Max) \
+  for (int Iterator = 0; Iterator < Range; ++Iterator) {
+
+#define LOOPEND_MINMAX(Min, Max) }
+
+#endif
+
+
+
 // MAINLOOP
 #if defined(USE_KOKKOS) && defined(USE_KOKKOS_TEAMS)
 #define MAINLOOPHEAD(Range, Iterator)                                \
