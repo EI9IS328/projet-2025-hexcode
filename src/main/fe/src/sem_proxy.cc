@@ -293,6 +293,51 @@ void SEMproxy::saveSlice(int timestep) {
   fclose(file);
 }
 
+void SEMproxy::saveCommpressSlice(int timestep){
+  const int slice_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "slices/slice_"
+                     + to_string(slice_num) + ".csv";
+  FILE *file = open_file(filename);
+
+  float pmin = std::numeric_limits<float>::max();
+  float pmax = std::numeric_limits<float>::min();
+  float dcompress;
+  const int order = m_mesh->getOrder();
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float pressure = pnGlobal(nodeIndex,i1);
+    pmin = std::min(pressure,pmin);
+    pmax = std::max(pressure,pmax);
+  }
+  dcompress = (pmax - pmin)/(std::pow(2,16)-1);
+  fprintf(file, "%f %f %f\n",pmin,pmax,dcompress);
+  fprintf(file, "plane timestep i j pressure\n");
+  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+
+  float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
+  short pressure;
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+    pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
+    if (z == srcz) {
+      fprintf(file, "xy %d %f %f %hd\n", timestep, x, y, pressure);
+    }
+    if (y == srcy) {
+      fprintf(file, "xz %d %f %f %hd\n", timestep, x, z, pressure);
+    }
+    if (x == srcx) {
+      fprintf(file, "yz %d %f %f %hd\n", timestep, y, z, pressure);
+    }
+  }
+
+  fclose(file);
+}
+
 void SEMproxy::saveSnapshot(int timestep) {
   const int snapshot_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "snapshots/snapshot_"
@@ -312,7 +357,6 @@ void SEMproxy::saveSnapshot(int timestep) {
   fclose(file);
 }
 
-//https://gitlab.spack.io/kokkos/kokkos/-/blob/874f492f99d17d178d621eb85a19188c869a7b41/example/tutorial/02_simple_reduce/simple_reduce.cpp
 void SEMproxy::saveCompressSnapshot(int timestep){
   int nodeIndex = 0;
   const int snapshot_num = timestep / snap_time_interval_;
@@ -420,14 +464,19 @@ void SEMproxy::run()
             saveCompressSnapshot(indexTimeSample);
           }
           else{
-            //saveSnapshot(indexTimeSample);
+            saveSnapshot(indexTimeSample);
           }
         }     
       }
       
-
-      if (is_slices_)
-        saveSlice(indexTimeSample);
+      if (is_slices_){
+        if(is_compress_){
+          saveCommpressSlice(indexTimeSample);
+        }
+        else{
+          saveSlice(indexTimeSample);
+        }
+      }
     }
 
     if(selectPoint.size() > 0){

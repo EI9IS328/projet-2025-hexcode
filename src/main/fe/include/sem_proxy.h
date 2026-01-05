@@ -83,6 +83,8 @@ class SEMproxy
    */
   void saveCompressSnapshot(int timestep);
 
+  void saveCommpressSlice(int timestep);
+
   void saveSlice(int timestep);
 
   void saveSismo(int timestep);
