@@ -357,35 +357,46 @@ void SEMproxy::saveSnapshot(int timestep) {
   fclose(file);
 }
 
-void SEMproxy::saveCompressSnapshot(int timestep){
-  int nodeIndex = 0;
-  const int snapshot_num = timestep / snap_time_interval_;
-  std::string filename = data_folder_ + "snapshots/snapshot_"
-                    + to_string(snapshot_num) + ".csv";
-  FILE *file = open_file(filename);
-  float pmin = std::numeric_limits<float>::max();
-  float pmax = std::numeric_limits<float>::min();
-  float dcompress;
-  const int order = m_mesh->getOrder();
-  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
-    float pressure = pnGlobal(nodeIndex,i1);
-    pmin = std::min(pressure,pmin);
-    pmax = std::max(pressure,pmax);
-  }
-  dcompress = (pmax - pmin)/(std::pow(2,16)-1);
-  fprintf(file, "%f %f %f\n",pmin,pmax,dcompress);
-  fprintf(file, "snap timestep x y z pressure\n");
+void SEMproxy::saveCompressSnapshot(int timestep) {
+    const int snapshot_num = timestep / snap_time_interval_;
+    std::string filename = data_folder_ + "snapshots/snapshot_" +
+                           std::to_string(snapshot_num) + ".csv";
 
-  for(int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes();nodeIndex++){
-    float x = m_mesh->nodeCoord(nodeIndex, 0);
-    float y = m_mesh->nodeCoord(nodeIndex, 1);
-    float z = m_mesh->nodeCoord(nodeIndex, 2);
+    FILE *file = open_file(filename);
 
-    short pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
-    fprintf(file, "%d %d %f %f %f %hd\n", snapshot_num, timestep, x, y, z, pressure);
-  }
-  fclose(file);
+    float pmin = std::numeric_limits<float>::max();
+    float pmax = std::numeric_limits<float>::lowest();
+
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+        float pressure = pnGlobal(nodeIndex, i1);
+        pmin = std::min(pmin, pressure);
+        pmax = std::max(pmax, pressure);
+    }
+
+    float dcompress = (pmax != pmin)
+        ? (pmax - pmin) / (std::pow(2.0f, 16) - 1.0f)
+        : 1.0f;
+
+    fprintf(file, "%.9g %.9g %.9g\n", pmin, pmax, dcompress);
+    fprintf(file, "snap timestep x y z pressure\n");
+
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+        float x = m_mesh->nodeCoord(nodeIndex, 0);
+        float y = m_mesh->nodeCoord(nodeIndex, 1);
+        float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+        float c = (pnGlobal(nodeIndex, i1) - pmin) / dcompress;
+        c = std::min(std::max(c, 0.0f), 65535.0f);
+
+        uint16_t pressure = static_cast<uint16_t>(std::round(c));
+
+        fprintf(file, "%d %d %.6f %.6f %.6f %hu\n",
+                snapshot_num, timestep, x, y, z, pressure);
+    }
+
+    fclose(file);
 }
+
 
 void SEMproxy::run()
 {
