@@ -35,6 +35,7 @@ for filename in os.listdir(directory):
         df.to_csv(
             tmp_path,
             index=False,
+            sep= " ",
             float_format="%.6f"   # ← float explicite
         )
 
