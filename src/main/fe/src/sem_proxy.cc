@@ -134,6 +134,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // save parameters
   is_snapshots_ = opt.isSnapshot;
   is_slices_ = opt.isSlice;
+  is_Compress_ = opt.is_Compress;
   snap_time_interval_ = opt.snapTimeInterval;
   is_in_situ = opt.isInSitu;
   data_folder_ = "data/data_" + date_ + "/";
@@ -184,10 +185,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     }
     selectPointFile.close();
 
-
   }
-
-  compression = opt.compression;
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
                                          modelLocation, physicType, order);
@@ -438,6 +436,51 @@ void SEMproxy::saveSlice(int timestep) {
   fclose(file);
 }
 
+void SEMproxy::saveCommpressSlice(int timestep){
+  const int slice_num = timestep / snap_time_interval_;
+  std::string filename = data_folder_ + "slices/slice_"
+                     + to_string(slice_num) + ".csv";
+  FILE *file = open_file(filename);
+
+  float pmin = std::numeric_limits<float>::max();
+  float pmax = std::numeric_limits<float>::min();
+  float dcompress;
+  const int order = m_mesh->getOrder();
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float pressure = pnGlobal(nodeIndex,i1);
+    pmin = std::min(pressure,pmin);
+    pmax = std::max(pressure,pmax);
+  }
+  dcompress = (pmax - pmin)/(std::pow(2,16)-1);
+  fprintf(file, "%f %f %f\n",pmin,pmax,dcompress);
+  fprintf(file, "plane timestep i j pressure\n");
+  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+
+  float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
+  float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
+  float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
+  short pressure;
+  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+    float x = m_mesh->nodeCoord(nodeIndex, 0);
+    float y = m_mesh->nodeCoord(nodeIndex, 1);
+    float z = m_mesh->nodeCoord(nodeIndex, 2);
+    pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
+    if (z == srcz) {
+      fprintf(file, "xy %d %f %f %hd\n", timestep, x, y, pressure);
+    }
+    if (y == srcy) {
+      fprintf(file, "xz %d %f %f %hd\n", timestep, x, z, pressure);
+    }
+    if (x == srcx) {
+      fprintf(file, "yz %d %f %f %hd\n", timestep, y, z, pressure);
+    }
+  }
+
+  fclose(file);
+}
+
 void SEMproxy::saveSnapshot(int timestep) {
   const int snapshot_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "snapshots/snapshot_"
@@ -456,6 +499,60 @@ void SEMproxy::saveSnapshot(int timestep) {
   }
   fclose(file);
 }
+
+void SEMproxy::saveCompressSnapshot(int timestep) {
+    const int snapshot_num = timestep / snap_time_interval_;
+    std::string filename = data_folder_ + "snapshots/snapshot_" +
+                           std::to_string(snapshot_num) + ".csv";
+
+    FILE *file = open_file(filename);
+    float pmin,pmax;
+    #if defined(USE_KOKKOS)
+
+    Kokkos::parallel_reduce(
+      "MinMaxPressure",
+      m_mesh->getNumberOfNodes(),
+      KOKKOS_LAMBDA(const int i, float& lmin, float& lmax) {
+          float p = pnGlobal(i, i1);
+          lmin = p < lmin ? p : lmin;
+          lmax = p > lmax ? p : lmax;
+      },
+      Kokkos::Min<float>(pmin),
+      Kokkos::Max<float>(pmax)
+    );
+
+    #else
+    pmin = std::numeric_limits<float>::max();
+    pmax = std::numeric_limits<float>::lowest();
+
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+        float pressure = pnGlobal(nodeIndex, i1);
+        pmin = std::min(pmin, pressure);
+        pmax = std::max(pmax, pressure);
+    }
+    #endif
+    float dcompress = (pmax != pmin) ? (pmax - pmin) / (std::pow(2.0f, 16) - 1.0f) : 1.0f;
+
+    fprintf(file, "%.9g %.9g %.9g\n", pmin, pmax, dcompress);
+    fprintf(file, "snap timestep x y z pressure\n");
+
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+        float x = m_mesh->nodeCoord(nodeIndex, 0);
+        float y = m_mesh->nodeCoord(nodeIndex, 1);
+        float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+        float c = (pnGlobal(nodeIndex, i1) - pmin) / dcompress;
+        c = std::min(std::max(c, 0.0f), 65535.0f);
+
+        uint16_t pressure = static_cast<uint16_t>(std::round(c));
+
+        fprintf(file, "%d %d %.6f %.6f %.6f %hu\n",
+                snapshot_num, timestep, x, y, z, pressure);
+    }
+
+    fclose(file);
+}
+
 
 void SEMproxy::run()
 {
@@ -555,22 +652,34 @@ void SEMproxy::run()
     {
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
-      if (is_snapshots_)
-        saveSnapshot(indexTimeSample);    
-      if (is_slices_)
-        saveSlice(indexTimeSample);
+      if (is_snapshots_){
+        if(is_Compress_){
+          saveCompressSnapshot(indexTimeSample);
+        }
+          else{
+          saveSnapshot(indexTimeSample);
+        }   
+      }  
+      if (is_slices_){
+        if(is_Compress_){
+          saveCommpressSlice(indexTimeSample);
+        }
+        else{
+          saveSlice(indexTimeSample);
+        }
+      }
       if (is_ppm_slices_)
         saveSliceAsPPM(indexTimeSample);
     }
 
     if(selectPoint.size() > 0){
-      if(compression){
+      if(is_Compress_){
         compresseRLESismo(indexTimeSample);
       }
       else{
         saveSismo(indexTimeSample);
       }
-    }
+    }  
 
     // Save pressure at receiver
     const int order = m_mesh->getOrder();

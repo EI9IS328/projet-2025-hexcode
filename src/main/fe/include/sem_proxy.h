@@ -75,6 +75,16 @@ class SEMproxy
   float find_cfl_dt(float cfl_factor);
 
   void saveSnapshot(int timestep);
+
+  /**
+   * @brief Save compressed data of snapshot
+   * 
+   * @param timestep the timestep to save data
+   */
+  void saveCompressSnapshot(int timestep);
+
+  void saveCommpressSlice(int timestep);
+
   void saveSlice(int timestep);
   void saveSismo(int timestep);
   void compresseRLESismo(int timestep);
@@ -125,7 +135,7 @@ class SEMproxy
   SolverUtils myUtils;
 
   //Compression
-  bool compression;
+  bool is_Compress_;
   int accumulator = -1;
   float prevPressure = -1;
 

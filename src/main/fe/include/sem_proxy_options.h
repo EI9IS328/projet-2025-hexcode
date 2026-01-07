@@ -30,6 +30,8 @@ class SemProxyOptions
   // snapshots
   bool isSnapshot = false;
   int snapTimeInterval = 50;
+  // compress
+  bool is_Compress = false;
   // slices
   bool isSlice = false;
   bool isPPM = false;
@@ -39,7 +41,6 @@ class SemProxyOptions
   float slice_posz = 1010.f;
   // in situ analysis
   bool isInSitu = false;
-  bool compression = false;
 
   void validate() const
   {
@@ -97,6 +98,6 @@ class SemProxyOptions
         "slice-posx", "X position of the slice (for PPM)", cxxopts::value<float>(o.slice_posx))(
         "slice-posy", "Y position of the slice (for PPM)", cxxopts::value<float>(o.slice_posy))(
         "slice-posz", "Z position of the slice (for PPM)", cxxopts::value<float>(o.slice_posz))(
-        "compress", "Compression activate (Quantification et RLE)", cxxopts::value<bool>(o.compression));
+        "compress", "Compression activate (Quantification et RLE)", cxxopts::value<bool>(o.is_Compress));
   }
 };
