@@ -77,7 +77,8 @@ class SEMproxy
   void saveSnapshot(int timestep);
   void saveSlice(int timestep);
   void saveSismo(int timestep);
-  void saveMeasure(float mesure,const char* mesureName);
+  void compresseRLESismo(int timestep);
+  void saveMeasure(float kerneltime_ms, float outputtime_ms, float traitementtime_ms);
   void saveSliceAsPPM(int timestep);
   void saveAnalyse(int index, float min, float max, float mean, float median, float std ,const char* analysisType );
 
@@ -112,6 +113,7 @@ class SEMproxy
   float dt_;
   float timemax_;
   int num_sample_;
+
   // source parameters
   const int myNumberOfRHS = 1;
   const float f0 = 5.;
@@ -121,6 +123,12 @@ class SEMproxy
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
   std::unique_ptr<SEMSolverBase> m_solver;
   SolverUtils myUtils;
+
+  //Compression
+  bool compression;
+  int accumulator = -1;
+  float prevPressure = -1;
+
 
   // arrays
   arrayReal myRHSTerm;

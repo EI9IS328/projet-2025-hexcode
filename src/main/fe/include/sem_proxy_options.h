@@ -39,6 +39,7 @@ class SemProxyOptions
   float slice_posz = 1010.f;
   // in situ analysis
   bool isInSitu = false;
+  bool compression = false;
 
   void validate() const
   {
@@ -95,6 +96,7 @@ class SemProxyOptions
         "plane", "Plane for PPM slice: 0=xy,1=yz,2=xz", cxxopts::value<int>(o.plane))(
         "slice-posx", "X position of the slice (for PPM)", cxxopts::value<float>(o.slice_posx))(
         "slice-posy", "Y position of the slice (for PPM)", cxxopts::value<float>(o.slice_posy))(
-        "slice-posz", "Z position of the slice (for PPM)", cxxopts::value<float>(o.slice_posz));
+        "slice-posz", "Z position of the slice (for PPM)", cxxopts::value<float>(o.slice_posz))(
+        "compress", "Compression activate (Quantification et RLE)", cxxopts::value<bool>(o.compression));
   }
 };

@@ -187,6 +187,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   }
 
+  compression = opt.compression;
+
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
                                          modelLocation, physicType, order);
   m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge,
@@ -231,17 +233,141 @@ void SEMproxy::saveSismo(int timestep)
   fclose(file);
 }
 
-void SEMproxy::saveMeasure(float measure, const char* measureName) {
+void SEMproxy::compresseRLESismo(int timestep)
+{
+  string filename = data_folder_ + "sismos/sismo.rle";
+  FILE *file = open_file(filename);
+
+  if(timestep == 0){
+    fprintf(file, "pressure");
+  }
+  
+  if(timestep <= num_sample_){
+    for (int i = 0; i < selectPoint.size(); i++) {
+      if(accumulator == -1){
+        prevPressure = pnGlobal(selectPoint[i], i1);
+        accumulator = 1;
+      }else{
+        if(prevPressure == pnGlobal(selectPoint[i], i1)){
+          accumulator++;
+        }
+        else{
+          if(accumulator == 1){
+            fprintf(file, " %f",prevPressure);
+          }
+          else{
+            fprintf(file," %dx%f",accumulator,prevPressure);
+          }
+          accumulator = 1;
+          prevPressure = pnGlobal(selectPoint[i], i1);
+        }
+      }
+      
+    }
+  }
+  if(timestep == num_sample_){
+    //pressure
+    if(accumulator == 1){
+      fprintf(file, " %f",prevPressure);
+    }
+    else{
+      fprintf(file," %dx%f",accumulator,prevPressure);
+    }
+    fprintf(file, "\n");
+
+    // z
+    fprintf(file,"z %dx(",num_sample_);
+    for (int i = 0; i < selectPoint.size(); i++) {
+      if(i != 0){
+        fprintf(file, ",");
+      }
+      fprintf(file, "%f",m_mesh->nodeCoord(selectPoint[i], 2));
+    }
+    fprintf(file, ")\n");
+
+    // y
+    fprintf(file,"y %dx(",num_sample_);
+    for (int i = 0; i < selectPoint.size(); i++) {
+      if(i != 0){
+        fprintf(file, ",");
+      }
+      fprintf(file, "%f",m_mesh->nodeCoord(selectPoint[i], 1));
+    }
+    fprintf(file, ")\n");
+
+    // x
+    fprintf(file,"x %dx(",num_sample_);
+    for (int i = 0; i < selectPoint.size(); i++) {
+      if(i != 0){
+        fprintf(file, ",");
+      }
+      fprintf(file, "%f",m_mesh->nodeCoord(selectPoint[i], 0));
+    }
+    fprintf(file, ")\n");
+
+    // timestep
+    fprintf(file,"x");
+    for (int i = 0; i < num_sample_; i++) {
+      fprintf(file," %ldx%d",selectPoint.size(),timestep);
+    }
+    fprintf(file,"\n");
+
+    // index
+    fprintf(file,"x %dx(",num_sample_);
+    for (int i = 0; i < selectPoint.size(); i++) {
+      if(i != 0){
+        fprintf(file, ",");
+      }
+      fprintf(file, "%d",i);
+    }
+    fprintf(file, ")\n");
+  }
+
+}
+
+void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float traitementtime_ms = 0.0f) {
   string filename = data_folder_ + "measure.csv";
   FILE *file = open_file(filename);
 
-  fseek(file, 0, SEEK_END);
-  if (ftell(file) == 0) {
-    fprintf(file, "measure name\n");
+  int sizefile_snapshots = 0;
+  if(is_snapshots_){
+    for(int i = 0; i <= num_sample_/snap_time_interval_; i++){
+      std::string snapshotfile = data_folder_ + "snapshots/snapshot_" + to_string(i) + ".csv";
+      FILE *snapshot = fopen(snapshotfile.c_str(), "r");
+      fseek(snapshot, 0, SEEK_END);
+      sizefile_snapshots += ftell(snapshot);
+      fclose(snapshot);
+    }
   }
 
-  fprintf(file, "%f %s\n", measure, measureName);
+  int sizefile_slices = 0;
 
+  if(is_slices_){
+    for(int i = 0; i <= num_sample_/snap_time_interval_; i++){
+      std::string slicefile = data_folder_ + "slices/slice_" + to_string(i) + ".csv";
+      FILE *slice = fopen(slicefile.c_str(), "r");
+      fseek(slice, 0, SEEK_END);
+      sizefile_slices += ftell(slice);
+      fclose(slice);
+    }
+  }
+
+  int sizefile_sismos = 0;
+
+  if(selectPoint.size() > 0){
+    std::string sismofile = data_folder_ + "sismos/sismo.csv";
+    FILE *sismo = fopen(sismofile.c_str(), "r");
+    fseek(sismo, 0, SEEK_END);
+    sizefile_sismos += ftell(sismo);
+    fclose(sismo);
+  }
+  
+  fseek(file, 0, SEEK_END);
+  if (ftell(file) == 0) {
+    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos\n");
+  }
+
+  fprintf(file, "%f %f %f %d %d %d\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos);
   fclose(file);
 }
 
@@ -502,21 +628,20 @@ void SEMproxy::run()
     }
   }
 
-  float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
-                            .time_since_epoch()
-                            .count();
-  
-  saveMeasure(kerneltime_ms,"kernel");
+  float kerneltime_ms = 
+      time_point_cast<microseconds>(totalComputeTime).time_since_epoch().count();
 
   float outputtime_ms =
       time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
 
-  saveMeasure(outputtime_ms,"output");
-
-  float traitementtime_ms =
-      time_point_cast<microseconds>(totalTraitementTime).time_since_epoch().count();
-
-  saveMeasure(traitementtime_ms,"traitement_in-situ");
+  if(!is_in_situ){
+    saveMeasure(kerneltime_ms,outputtime_ms,0.0f);
+  }
+  else{
+    float traitementtime_ms =
+        time_point_cast<microseconds>(totalTraitementTime).time_since_epoch().count();
+    saveMeasure(kerneltime_ms,outputtime_ms,traitementtime_ms);
+  }
 
   cout << "------------------------------------------------ " << endl;
   cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."
