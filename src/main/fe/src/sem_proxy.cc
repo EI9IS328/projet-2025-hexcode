@@ -363,19 +363,32 @@ void SEMproxy::saveCompressSnapshot(int timestep) {
                            std::to_string(snapshot_num) + ".csv";
 
     FILE *file = open_file(filename);
+    float pmin,pmax;
+    #if defined(USE_KOKKOS)
 
-    float pmin = std::numeric_limits<float>::max();
-    float pmax = std::numeric_limits<float>::lowest();
+    Kokkos::parallel_reduce(
+      "MinMaxPressure",
+      m_mesh->getNumberOfNodes(),
+      KOKKOS_LAMBDA(const int i, float& lmin, float& lmax) {
+          float p = pnGlobal(i, i1);
+          lmin = p < lmin ? p : lmin;
+          lmax = p > lmax ? p : lmax;
+      },
+      Kokkos::Min<float>(pmin),
+      Kokkos::Max<float>(pmax)
+    );
+
+    #else
+    pmin = std::numeric_limits<float>::max();
+    pmax = std::numeric_limits<float>::lowest();
 
     for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
         float pressure = pnGlobal(nodeIndex, i1);
         pmin = std::min(pmin, pressure);
         pmax = std::max(pmax, pressure);
     }
-
-    float dcompress = (pmax != pmin)
-        ? (pmax - pmin) / (std::pow(2.0f, 16) - 1.0f)
-        : 1.0f;
+    #endif
+    float dcompress = (pmax != pmin) ? (pmax - pmin) / (std::pow(2.0f, 16) - 1.0f) : 1.0f;
 
     fprintf(file, "%.9g %.9g %.9g\n", pmin, pmax, dcompress);
     fprintf(file, "snap timestep x y z pressure\n");
