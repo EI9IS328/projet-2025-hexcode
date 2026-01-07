@@ -242,7 +242,7 @@ void SEMproxy::compresseRLESismo(int timestep)
     fprintf(file, "pressure");
   }
   
-  if(timestep <= num_sample_){
+  if(timestep < num_sample_){
     for (int i = 0; i < selectPoint.size(); i++) {
       if(accumulator == -1){
         prevPressure = pnGlobal(selectPoint[i], i1);
@@ -265,7 +265,7 @@ void SEMproxy::compresseRLESismo(int timestep)
       
     }
   }
-  if(timestep == num_sample_){
+  if(timestep == num_sample_ - 1){
     //pressure
     if(accumulator == 1){
       fprintf(file, " %f",prevPressure);
@@ -306,14 +306,14 @@ void SEMproxy::compresseRLESismo(int timestep)
     fprintf(file, ")\n");
 
     // timestep
-    fprintf(file,"x");
+    fprintf(file,"timestep");
     for (int i = 0; i < num_sample_; i++) {
       fprintf(file," %ldx%d",selectPoint.size(),timestep);
     }
     fprintf(file,"\n");
 
     // index
-    fprintf(file,"x %dx(",num_sample_);
+    fprintf(file,"index %dx(",num_sample_);
     for (int i = 0; i < selectPoint.size(); i++) {
       if(i != 0){
         fprintf(file, ",");
@@ -322,41 +322,39 @@ void SEMproxy::compresseRLESismo(int timestep)
     }
     fprintf(file, ")\n");
   }
-
+  fclose(file);
 }
 
 void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float traitementtime_ms = 0.0f) {
   string filename = data_folder_ + "measure.csv";
   FILE *file = open_file(filename);
 
-  int sizefile_snapshots = 0;
+  long int sizefile_snapshots = 0;
   if(is_snapshots_){
-    for(int i = 0; i <= num_sample_/snap_time_interval_; i++){
+    for(int i = 0; i < num_sample_/snap_time_interval_; i++){
       std::string snapshotfile = data_folder_ + "snapshots/snapshot_" + to_string(i) + ".csv";
-      FILE *snapshot = fopen(snapshotfile.c_str(), "r");
+      FILE *snapshot = open_file(snapshotfile);
       fseek(snapshot, 0, SEEK_END);
       sizefile_snapshots += ftell(snapshot);
       fclose(snapshot);
     }
   }
 
-  int sizefile_slices = 0;
-
+  long int sizefile_slices = 0;
   if(is_slices_){
-    for(int i = 0; i <= num_sample_/snap_time_interval_; i++){
+    for(int i = 0; i < num_sample_/snap_time_interval_; i++){
       std::string slicefile = data_folder_ + "slices/slice_" + to_string(i) + ".csv";
-      FILE *slice = fopen(slicefile.c_str(), "r");
+      FILE *slice = open_file(slicefile);
       fseek(slice, 0, SEEK_END);
       sizefile_slices += ftell(slice);
       fclose(slice);
     }
   }
 
-  int sizefile_sismos = 0;
-
+  long int sizefile_sismos = 0;
   if(selectPoint.size() > 0){
     std::string sismofile = data_folder_ + "sismos/sismo.csv";
-    FILE *sismo = fopen(sismofile.c_str(), "r");
+    FILE *sismo = open_file(sismofile);
     fseek(sismo, 0, SEEK_END);
     sizefile_sismos += ftell(sismo);
     fclose(sismo);
@@ -367,7 +365,8 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
     fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos\n");
   }
 
-  fprintf(file, "%f %f %f %d %d %d\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos);
+  fprintf(file, "%f %f %f %ld %ld %ld\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos);
+
   fclose(file);
 }
 
@@ -565,7 +564,12 @@ void SEMproxy::run()
     }
 
     if(selectPoint.size() > 0){
-      saveSismo(indexTimeSample);
+      if(compression){
+        compresseRLESismo(indexTimeSample);
+      }
+      else{
+        saveSismo(indexTimeSample);
+      }
     }
 
     // Save pressure at receiver
@@ -635,13 +639,14 @@ void SEMproxy::run()
       time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
 
   if(!is_in_situ){
-    saveMeasure(kerneltime_ms,outputtime_ms,0.0f);
+    saveMeasure(kerneltime_ms,outputtime_ms);
   }
   else{
     float traitementtime_ms =
         time_point_cast<microseconds>(totalTraitementTime).time_since_epoch().count();
     saveMeasure(kerneltime_ms,outputtime_ms,traitementtime_ms);
   }
+
 
   cout << "------------------------------------------------ " << endl;
   cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."
