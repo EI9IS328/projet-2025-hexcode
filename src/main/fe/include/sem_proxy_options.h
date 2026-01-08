@@ -31,7 +31,8 @@ class SemProxyOptions
   bool isSnapshot = false;
   int snapTimeInterval = 50;
   // compress
-  bool is_Compress = false;
+  bool is_Quantify = false;
+  bool is_RLE = false;
   // slices
   bool isSlice = false;
   bool isPPM = false;
@@ -68,7 +69,7 @@ class SemProxyOptions
         "implem", "Implementation: makutu|shiva",
         cxxopts::value<std::string>(o.implem))(
         "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))(
-        "rf", "a file contain receiver position", cxxopts::value<std::string>(o.receiverfilename))(
+        "rf,receiver-file", "a file contain receiver position", cxxopts::value<std::string>(o.receiverfilename))(
         "mesh", "Mesh: cartesian|ucartesian",
         cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)",
@@ -98,6 +99,7 @@ class SemProxyOptions
         "slice-posx", "X position of the slice (for PPM)", cxxopts::value<float>(o.slice_posx))(
         "slice-posy", "Y position of the slice (for PPM)", cxxopts::value<float>(o.slice_posy))(
         "slice-posz", "Z position of the slice (for PPM)", cxxopts::value<float>(o.slice_posz))(
-        "compress", "Compression activate (Quantification et RLE)", cxxopts::value<bool>(o.is_Compress));
+        "rle", "RLE compression activate", cxxopts::value<bool>(o.is_RLE))(
+        "quantify", "Quantification compression activate", cxxopts::value<bool>(o.is_Quantify));
   }
 };

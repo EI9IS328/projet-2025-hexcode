@@ -85,9 +85,10 @@ class SEMproxy
 
   void saveCommpressSlice(int timestep);
 
+  void compresseRLESismo(int timestep);
+
   void saveSlice(int timestep);
   void saveSismo(int timestep);
-  void compresseRLESismo(int timestep);
   void saveMeasure(float kerneltime_ms, float outputtime_ms, float traitementtime_ms);
   void saveSliceAsPPM(int timestep);
   void saveAnalyse(int index, float min, float max, float mean, float median, float std ,const char* analysisType );
@@ -135,7 +136,8 @@ class SEMproxy
   SolverUtils myUtils;
 
   //Compression
-  bool is_Compress_;
+  bool is_RLE;
+  bool is_Quantify;
   int accumulator = -1;
   float prevPressure = -1;
 

@@ -134,7 +134,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // save parameters
   is_snapshots_ = opt.isSnapshot;
   is_slices_ = opt.isSlice;
-  is_Compress_ = opt.is_Compress;
+  is_Quantify = opt.is_Quantify;
+  is_RLE = opt.is_RLE;
   snap_time_interval_ = opt.snapTimeInterval;
   is_in_situ = opt.isInSitu;
   data_folder_ = "data/data_" + date_ + "/";
@@ -306,7 +307,7 @@ void SEMproxy::compresseRLESismo(int timestep)
     // timestep
     fprintf(file,"timestep");
     for (int i = 0; i < num_sample_; i++) {
-      fprintf(file," %ldx%d",selectPoint.size(),timestep);
+      fprintf(file," %ldx%d",selectPoint.size(),i);
     }
     fprintf(file,"\n");
 
@@ -330,7 +331,16 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
   long int sizefile_snapshots = 0;
   if(is_snapshots_){
     for(int i = 0; i < num_sample_/snap_time_interval_; i++){
-      std::string snapshotfile = data_folder_ + "snapshots/snapshot_" + to_string(i) + ".csv";
+      std::string snapshotfile;
+      if(is_Quantify){
+        snapshotfile = data_folder_ + "snapshots/snapshot_" + to_string(i) + ".quanti";
+        if(is_RLE){
+          snapshotfile += ".rle";
+        }
+      }
+      else{
+        snapshotfile = data_folder_ + "snapshots/snapshot_" + to_string(i) + ".csv";
+      }
       FILE *snapshot = open_file(snapshotfile);
       fseek(snapshot, 0, SEEK_END);
       sizefile_snapshots += ftell(snapshot);
@@ -351,7 +361,13 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
 
   long int sizefile_sismos = 0;
   if(selectPoint.size() > 0){
-    std::string sismofile = data_folder_ + "sismos/sismo.csv";
+    std::string sismofile;
+    if(is_RLE){
+      sismofile = data_folder_ + "sismos/sismo.rle";
+    }
+    else{
+      sismofile = data_folder_ + "sismos/sismo.csv";
+    }
     FILE *sismo = open_file(sismofile);
     fseek(sismo, 0, SEEK_END);
     sizefile_sismos += ftell(sismo);
@@ -503,7 +519,11 @@ void SEMproxy::saveSnapshot(int timestep) {
 void SEMproxy::saveCompressSnapshot(int timestep) {
     const int snapshot_num = timestep / snap_time_interval_;
     std::string filename = data_folder_ + "snapshots/snapshot_" +
-                           std::to_string(snapshot_num) + ".csv";
+                           std::to_string(snapshot_num) + ".quanti";
+
+    if(is_RLE){
+      filename += ".rle";
+    }
 
     FILE *file = open_file(filename);
     float pmin,pmax;
@@ -533,21 +553,142 @@ void SEMproxy::saveCompressSnapshot(int timestep) {
     #endif
     float dcompress = (pmax != pmin) ? (pmax - pmin) / (std::pow(2.0f, 16) - 1.0f) : 1.0f;
 
-    fprintf(file, "%.9g %.9g %.9g\n", pmin, pmax, dcompress);
-    fprintf(file, "snap timestep x y z pressure\n");
 
-    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
-        float x = m_mesh->nodeCoord(nodeIndex, 0);
-        float y = m_mesh->nodeCoord(nodeIndex, 1);
-        float z = m_mesh->nodeCoord(nodeIndex, 2);
+    if(is_RLE){
+      int prev_count;
+      float prev_value;
+      fprintf(file, "%.9g %.9g %.9g\n", pmin, pmax, dcompress);
+      fprintf(file, "pressure");
 
-        float c = (pnGlobal(nodeIndex, i1) - pmin) / dcompress;
-        c = std::min(std::max(c, 0.0f), 65535.0f);
+      // pressure
+      prev_count = -1;
+      prev_value = -1.0f;
+      for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+          float x = m_mesh->nodeCoord(nodeIndex, 0);
+          float y = m_mesh->nodeCoord(nodeIndex, 1);
+          float z = m_mesh->nodeCoord(nodeIndex, 2);
 
-        uint16_t pressure = static_cast<uint16_t>(std::round(c));
+          float c = (pnGlobal(nodeIndex, i1) - pmin) / dcompress;
+          c = std::min(std::max(c, 0.0f), 65535.0f);
 
-        fprintf(file, "%d %d %.6f %.6f %.6f %hu\n",
-                snapshot_num, timestep, x, y, z, pressure);
+          uint16_t pressure = static_cast<uint16_t>(std::round(c));
+
+          if(prev_count == -1){
+              prev_value = pressure;
+              prev_count = 1;
+              continue;
+          }
+
+          if (pressure == prev_value) {
+              prev_count++;
+          } else {
+              if (prev_count == 1) {
+                  fprintf(file, " %hu", static_cast<uint16_t>(prev_value));
+              } else if (prev_count > 1) {
+                  fprintf(file, " %dx%hu", prev_count, static_cast<uint16_t>(prev_value));
+              }
+              prev_value = pressure;
+              prev_count = 1;
+          }
+      }
+      fprintf(file,"\nz ");
+
+      //z
+      prev_count = 1;
+      prev_value = m_mesh->nodeCoord(0, 2);
+      for (int nodeIndex = 1; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+          float z = m_mesh->nodeCoord(nodeIndex, 2);
+          if (z == prev_value) {
+              prev_count++;
+          } else {
+              if (prev_count == 1) {
+                  fprintf(file, " %.6f", prev_value);
+              } else {
+                  fprintf(file, " %dx%.6f", prev_count, prev_value);
+              }
+              prev_value = z;
+              prev_count = 1;
+          }
+
+          if(nodeIndex == m_mesh->getNumberOfNodes() - 1){
+              if (prev_count == 1) {
+                  fprintf(file, " %.6f", prev_value);
+              } else {
+                  fprintf(file, " %dx%.6f", prev_count, prev_value);
+              }
+          }
+      }
+      fprintf(file,"\ny ");
+
+      //y
+      prev_count = 1;
+      prev_value = m_mesh->nodeCoord(0, 1);
+      for (int nodeIndex = 1; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+          float y = m_mesh->nodeCoord(nodeIndex, 1);
+          if (y == prev_value) {
+              prev_count++;
+          } else {
+              if (prev_count == 1) {
+                  fprintf(file, " %.6f", prev_value);
+              } else {
+                  fprintf(file, " %dx%.6f", prev_count, prev_value);
+              }
+              prev_value = y;
+              prev_count = 1;
+          }
+
+          if(nodeIndex == m_mesh->getNumberOfNodes() - 1){
+              if (prev_count == 1) {
+                  fprintf(file, " %.6f", prev_value);
+              } else {
+                  fprintf(file, " %dx%.6f", prev_count, prev_value);
+              }
+          }
+      }
+      fprintf(file,"\nx %dx(",nb_nodes_[0]);
+
+      for (int nodeIndex = 0; nodeIndex < nb_nodes_[0]; nodeIndex++) {
+          float x = m_mesh->nodeCoord(nodeIndex, 0);
+          if (nodeIndex != 0) {
+              fprintf(file, ",");
+          }
+          fprintf(file, "%.6f", x);
+      }
+      fprintf(file,")\ntimestep ");
+
+      // timestep
+      if (nb_nodes_[0] == 1 && nb_nodes_[1] == 1 && nb_nodes_[2] == 1){
+        fprintf(file, " %d\nsnap", timestep);
+      }
+      else{
+        fprintf(file, " %dx%d\nsnap",nb_nodes_[0] * nb_nodes_[1] * nb_nodes_[2], timestep);
+      }
+
+      // snap
+      if (nb_nodes_[0] == 1 && nb_nodes_[1] == 1 && nb_nodes_[2] == 1){
+        fprintf(file, " %d\n", snapshot_num);
+      }
+      else{
+        fprintf(file, " %dx%d\n",nb_nodes_[0] * nb_nodes_[1] * nb_nodes_[2], snapshot_num);
+      }
+
+    }else{
+      fprintf(file, "%.9g %.9g %.9g\n", pmin, pmax, dcompress);
+      fprintf(file, "snap timestep x y z pressure\n");
+
+      for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+          float x = m_mesh->nodeCoord(nodeIndex, 0);
+          float y = m_mesh->nodeCoord(nodeIndex, 1);
+          float z = m_mesh->nodeCoord(nodeIndex, 2);
+
+          float c = (pnGlobal(nodeIndex, i1) - pmin) / dcompress;
+          c = std::min(std::max(c, 0.0f), 65535.0f);
+
+          uint16_t pressure = static_cast<uint16_t>(std::round(c));
+
+          fprintf(file, "%d %d %.6f %.6f %.6f %hu\n",
+                  snapshot_num, timestep, x, y, z, pressure);
+      }
     }
 
     fclose(file);
@@ -653,7 +794,7 @@ void SEMproxy::run()
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
       if (is_snapshots_){
-        if(is_Compress_){
+        if(is_Quantify){
           saveCompressSnapshot(indexTimeSample);
         }
           else{
@@ -661,7 +802,7 @@ void SEMproxy::run()
         }   
       }  
       if (is_slices_){
-        if(is_Compress_){
+        if(is_Quantify){
           saveCommpressSlice(indexTimeSample);
         }
         else{
@@ -673,7 +814,7 @@ void SEMproxy::run()
     }
 
     if(selectPoint.size() > 0){
-      if(is_Compress_){
+      if(is_RLE){
         compresseRLESismo(indexTimeSample);
       }
       else{
