@@ -351,7 +351,16 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
   long int sizefile_slices = 0;
   if(is_slices_){
     for(int i = 0; i < num_sample_/snap_time_interval_; i++){
-      std::string slicefile = data_folder_ + "slices/slice_" + to_string(i) + ".csv";
+      std::string slicefile;
+      if(is_Quantify){
+        slicefile = data_folder_ + "slices/slice_" + to_string(i) + ".quanti";
+        if(is_RLE){
+          slicefile += ".rle";
+        }
+      }
+      else{
+        slicefile = data_folder_ + "slices/slice_" + to_string(i) + ".csv";
+      }
       FILE *slice = open_file(slicefile);
       fseek(slice, 0, SEEK_END);
       sizefile_slices += ftell(slice);
@@ -455,7 +464,12 @@ void SEMproxy::saveSlice(int timestep) {
 void SEMproxy::saveCommpressSlice(int timestep){
   const int slice_num = timestep / snap_time_interval_;
   std::string filename = data_folder_ + "slices/slice_"
-                     + to_string(slice_num) + ".csv";
+                     + to_string(slice_num) + ".quanti";
+
+  if(is_RLE){
+    filename += ".rle";
+  }
+  
   FILE *file = open_file(filename);
 
   float pmin = std::numeric_limits<float>::max();
@@ -469,28 +483,358 @@ void SEMproxy::saveCommpressSlice(int timestep){
   }
   dcompress = (pmax - pmin)/(std::pow(2,16)-1);
   fprintf(file, "%f %f %f\n",pmin,pmax,dcompress);
-  fprintf(file, "plane timestep i j pressure\n");
-  float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
-  float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
-  float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
 
-  float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
-  float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
-  float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
-  short pressure;
-  for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
-    float x = m_mesh->nodeCoord(nodeIndex, 0);
-    float y = m_mesh->nodeCoord(nodeIndex, 1);
-    float z = m_mesh->nodeCoord(nodeIndex, 2);
-    pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
-    if (z == srcz) {
-      fprintf(file, "xy %d %f %f %hd\n", timestep, x, y, pressure);
+  if(is_RLE){
+    int prev_count;
+      float prev_value;
+    fprintf(file, "pressure");
+    float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+    float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+    float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+    float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
+    float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
+    float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
+    short pressure;
+
+
+    // pressure
+    prev_count = -1;
+    prev_value = -1.0f;
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      float x = m_mesh->nodeCoord(nodeIndex, 0);
+      float y = m_mesh->nodeCoord(nodeIndex, 1);
+      float z = m_mesh->nodeCoord(nodeIndex, 2);
+      pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
+
+      if(prev_count == -1){
+              prev_value = pressure;
+              prev_count = 1;
+              continue;
+      }
+
+      if (pressure == prev_value) {
+          prev_count++;
+      } else {
+          if (prev_count == 1) {
+              fprintf(file, " %hd",(short)prev_value);
+          } else if (prev_count > 1) {
+              fprintf(file, " %dx%hd",prev_count,(short)prev_value);
+          }
+          prev_value = pressure;
+          prev_count = 1;
+      }
+
+      if(nodeIndex == m_mesh->getNumberOfNodes() - 1){
+          if (prev_count == 1) {
+              fprintf(file, " %hd", (short)prev_value);
+          } else if (prev_count > 1) {
+              fprintf(file, " %dx%hd", prev_count, (short)prev_value);
+          }
+      }
     }
-    if (y == srcy) {
-      fprintf(file, "xz %d %f %f %hd\n", timestep, x, z, pressure);
+
+    fprintf(file, "\nj");
+
+    // j
+    prev_count = -1;
+    prev_value = -1.0f;
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      float x = m_mesh->nodeCoord(nodeIndex, 0);
+      float y = m_mesh->nodeCoord(nodeIndex, 1);
+      float z = m_mesh->nodeCoord(nodeIndex, 2);
+      float value = -1.0f;
+
+      if (z == srcz) {
+        value = y;
+        if(prev_count == -1){
+              prev_value = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = value;
+            prev_count = 1;
+        }
+      }
+      if (y == srcy) {
+        value = z;
+        if(prev_count == -1){
+              prev_value = value;
+              prev_count = 1;
+              continue;
+      }
+
+      if (value == prev_value) {
+          prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = value;
+            prev_count = 1;
+        }
+      }
+      if (x == srcx) {
+        value = z;
+        if(prev_count == -1){
+              prev_value = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = value;
+            prev_count = 1;
+        }
+      }
+
     }
-    if (x == srcx) {
-      fprintf(file, "yz %d %f %f %hd\n", timestep, y, z, pressure);
+
+    if (prev_count == 1) {
+      fprintf(file, " %f", prev_value);
+    } else if (prev_count > 1) {
+      fprintf(file, " %dx%f", prev_count, prev_value);
+    }
+
+    fprintf(file, "\ni");
+
+        // i
+    prev_count = -1;
+    prev_value = -1.0f;
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      float x = m_mesh->nodeCoord(nodeIndex, 0);
+      float y = m_mesh->nodeCoord(nodeIndex, 1);
+      float z = m_mesh->nodeCoord(nodeIndex, 2);
+      float value = -1.0f;
+
+      if (z == srcz) {
+        value = x;
+        if(prev_count == -1){
+              prev_value = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = value;
+            prev_count = 1;
+        }
+      }
+      if (y == srcy) {
+        value = x;
+        if(prev_count == -1){
+              prev_value = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = value;
+            prev_count = 1;
+        }
+      }
+      if (x == srcx) {
+        value = y;
+        if(prev_count == -1){
+              prev_value = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = value;
+            prev_count = 1;
+        }
+      }
+
+    }
+
+    if (prev_count == 1) {
+      fprintf(file, " %f", prev_value);
+    } else if (prev_count > 1) {
+      fprintf(file, " %dx%f", prev_count, prev_value);
+    }
+
+
+
+    fprintf(file, "\ntimestep");
+
+
+    // timestep
+    prev_count = 0;
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      float x = m_mesh->nodeCoord(nodeIndex, 0);
+      float y = m_mesh->nodeCoord(nodeIndex, 1);
+      float z = m_mesh->nodeCoord(nodeIndex, 2);
+      if (z == srcz) {
+        prev_count++;
+      }
+      if (y == srcy) {
+        prev_count++;
+      }
+      if (x == srcx) {
+        prev_count++;
+      }
+    }
+
+    if(prev_count == 1){
+      fprintf(file, " %d",timestep);
+    }else{
+      fprintf(file, " %dx%d",prev_count,timestep);
+    }
+
+    fprintf(file, "\nplane");
+
+    //plane
+
+    prev_count = -1;
+    const char* prev_plane = nullptr;
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      float x = m_mesh->nodeCoord(nodeIndex, 0);
+      float y = m_mesh->nodeCoord(nodeIndex, 1);
+      float z = m_mesh->nodeCoord(nodeIndex, 2);
+      const char* value = nullptr;
+
+      if (z == srcz) {
+        value = "(xy)";
+        if(prev_count == -1){
+              prev_plane = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_plane) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %s", prev_plane);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%s", prev_count, prev_plane);
+            }
+            prev_plane = value;
+            prev_count = 1;
+        }
+
+      }
+      if (y == srcy) {
+        value = "(xz)";
+        if(prev_count == -1){
+              prev_plane = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_plane) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %s", prev_plane);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%s", prev_count, prev_plane);
+            }
+            prev_plane = value;
+            prev_count = 1;
+        }
+      }
+      if (x == srcx) {
+        value = "(yz)";
+        if(prev_count == -1){
+              prev_plane = value;
+              prev_count = 1;
+              continue;
+        }
+
+        if (value == prev_plane) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %s", prev_plane);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%s", prev_count, prev_plane);
+            }
+            prev_plane = value;
+            prev_count = 1;
+        }
+      }
+    }
+
+    if (prev_count == 1) {
+      fprintf(file, " %s", prev_plane);
+    } else if (prev_count > 1) {
+      fprintf(file, " %dx%s", prev_count, prev_plane);
+    }
+
+
+  }else{
+    fprintf(file, "plane timestep i j pressure\n");
+    float node_size_x = floor(domain_size_[0] / (nb_nodes_[0] - 1));
+    float node_size_y = floor(domain_size_[1] / (nb_nodes_[1] - 1));
+    float node_size_z = floor(domain_size_[2] / (nb_nodes_[2] - 1));
+    float srcx = (floor(src_coord_[0] / node_size_x) + 1) * node_size_x;
+    float srcy = (floor(src_coord_[1] / node_size_y)  + 1) * node_size_y;
+    float srcz = (floor(src_coord_[2] / node_size_z)  + 1) * node_size_z;
+    short pressure;
+    for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
+      float x = m_mesh->nodeCoord(nodeIndex, 0);
+      float y = m_mesh->nodeCoord(nodeIndex, 1);
+      float z = m_mesh->nodeCoord(nodeIndex, 2);
+      pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
+      if (z == srcz) {
+        fprintf(file, "xy %d %f %f %hd\n", timestep, x, y, pressure);
+      }
+      if (y == srcy) {
+        fprintf(file, "xz %d %f %f %hd\n", timestep, x, z, pressure);
+      }
+      if (x == srcx) {
+        fprintf(file, "yz %d %f %f %hd\n", timestep, y, z, pressure);
+      }
     }
   }
 
@@ -589,6 +933,14 @@ void SEMproxy::saveCompressSnapshot(int timestep) {
               }
               prev_value = pressure;
               prev_count = 1;
+          }
+
+          if(nodeIndex == m_mesh->getNumberOfNodes() - 1){
+              if (prev_count == 1) {
+                  fprintf(file, " %hu", static_cast<uint16_t>(prev_value));
+              } else if (prev_count > 1) {
+                  fprintf(file, " %dx%hu", prev_count, static_cast<uint16_t>(prev_value));
+              }
           }
       }
       fprintf(file,"\nz ");
