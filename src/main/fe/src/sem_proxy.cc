@@ -506,7 +506,28 @@ void SEMproxy::saveCommpressSlice(int timestep){
       float z = m_mesh->nodeCoord(nodeIndex, 2);
       pressure = (short) ((pnGlobal(nodeIndex, i1) - pmin )/dcompress);
 
-      if(prev_count == -1){
+      if (z == srcz) {
+        if(prev_count == -1){
+              prev_value = pressure;
+              prev_count = 1;
+              continue;
+        }
+
+        if (pressure == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = pressure;
+            prev_count = 1;
+        }
+      }
+      if (y == srcy) {
+        if(prev_count == -1){
               prev_value = pressure;
               prev_count = 1;
               continue;
@@ -514,23 +535,44 @@ void SEMproxy::saveCommpressSlice(int timestep){
 
       if (pressure == prev_value) {
           prev_count++;
-      } else {
-          if (prev_count == 1) {
-              fprintf(file, " %hd",(short)prev_value);
-          } else if (prev_count > 1) {
-              fprintf(file, " %dx%hd",prev_count,(short)prev_value);
-          }
-          prev_value = pressure;
-          prev_count = 1;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = pressure;
+            prev_count = 1;
+        }
+      }
+      if (x == srcx) {
+        if(prev_count == -1){
+              prev_value = pressure;
+              prev_count = 1;
+              continue;
+        }
+
+        if (pressure == prev_value) {
+            prev_count++;
+        } else {
+            if (prev_count == 1) {
+                fprintf(file, " %f", prev_value);
+
+            } else if (prev_count > 1) {
+                fprintf(file, " %dx%f", prev_count, prev_value);
+            }
+            prev_value = pressure;
+            prev_count = 1;
+        }
       }
 
-      if(nodeIndex == m_mesh->getNumberOfNodes() - 1){
-          if (prev_count == 1) {
-              fprintf(file, " %hd", (short)prev_value);
-          } else if (prev_count > 1) {
-              fprintf(file, " %dx%hd", prev_count, (short)prev_value);
-          }
-      }
+    }
+
+    if (prev_count == 1) {
+      fprintf(file, " %f", prev_value);
+    } else if (prev_count > 1) {
+      fprintf(file, " %dx%f", prev_count, prev_value);
     }
 
     fprintf(file, "\nj");
