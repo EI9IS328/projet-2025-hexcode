@@ -279,5 +279,6 @@ benchmark_comparison.png
 data/*
 
 script/data/*
+*.png
 
 *.csv

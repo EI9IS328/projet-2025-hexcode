@@ -27,9 +27,9 @@ def main():
             label=f"save_interval={interval}"
         )
 
-    plt.xlabel("Num elements")
-    plt.ylabel("Total time (s)")
-    plt.title("Total execution time vs problem size")
+    plt.xlabel("Nombre d'éléments")
+    plt.ylabel("Temps total (s)")
+    plt.title("Temps total de la simulation in-situ en fonction du nombre d'éléments")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
@@ -68,22 +68,24 @@ def main():
     # =========================
     # 3. Taille des fichiers
     # =========================
-    plt.figure(figsize=(8, 6))
+    SAVE_INTERVAL = 100
+    df_filt = df[df["save_interval"] == SAVE_INTERVAL]
 
-    plt.plot(df["num_elements"]**3, df["size_simsos_file"], marker="o", label="Sismos")
-    plt.plot(df["num_elements"]**3, df["size_snapshots_file"], marker="o", label="Snapshots")
-    plt.plot(df["num_elements"]**3, df["size_slices_file"], marker="o", label="Slices")
-    plt.plot(df["num_elements"]**3, df["size_ppm_slices_file"], marker="o", label="PPM Slices")
+    plt.figure(figsize=(9, 6))
+
+    plt.plot(df_filt["num_elements"]**3, df_filt["size_simsos_file"], marker="o", label="simsos")
+    plt.plot(df_filt["num_elements"]**3, df_filt["size_slices_file"], marker="o", label="slices")
+    plt.plot(df_filt["num_elements"]**3, df_filt["size_ppm_slices_file"], marker="o", label="ppm slices")
 
     plt.xlabel("Nombre d'éléments")
-    plt.ylabel("Taille des fichiers")
-    plt.title("Taille des fichiers de sortie vs taille du problème")
+    plt.ylabel("Taille des fichiers (bytes)")
+    plt.title(f"Taille des fichiers en fonction du nombre d'éléments\n(save_interval = {SAVE_INTERVAL})")
     plt.legend()
     plt.grid(True)
+
     plt.tight_layout()
     plt.savefig("file_sizes.png")
     plt.show()
-
 
 if __name__ == "__main__":
     main()
