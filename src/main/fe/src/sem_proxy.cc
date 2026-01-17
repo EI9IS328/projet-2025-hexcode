@@ -918,21 +918,21 @@ void SEMproxy::saveCompressSnapshot(int timestep) {
 
     FILE *file = open_file(filename);
     float pmin,pmax;
-    #if defined(USE_KOKKOS)
+    // #if defined(USE_KOKKOS)
 
-    Kokkos::parallel_reduce(
-      "MinMaxPressure",
-      m_mesh->getNumberOfNodes(),
-      KOKKOS_LAMBDA(const int i, float& lmin, float& lmax) {
-          float p = pnGlobal(i, i1);
-          lmin = p < lmin ? p : lmin;
-          lmax = p > lmax ? p : lmax;
-      },
-      Kokkos::Min<float>(pmin),
-      Kokkos::Max<float>(pmax)
-    );
+    // Kokkos::parallel_reduce(
+    //   "MinMaxPressure",
+    //   m_mesh->getNumberOfNodes(),
+    //   KOKKOS_LAMBDA(const int i, float& lmin, float& lmax) {
+    //       float p = pnGlobal(i, i1);
+    //       lmin = p < lmin ? p : lmin;
+    //       lmax = p > lmax ? p : lmax;
+    //   },
+    //   Kokkos::Min<float>(pmin),
+    //   Kokkos::Max<float>(pmax)
+    // );
 
-    #else
+    //#else
     pmin = std::numeric_limits<float>::max();
     pmax = std::numeric_limits<float>::lowest();
 
@@ -941,7 +941,7 @@ void SEMproxy::saveCompressSnapshot(int timestep) {
         pmin = std::min(pmin, pressure);
         pmax = std::max(pmax, pressure);
     }
-    #endif
+    //#endif
     float dcompress = (pmax != pmin) ? (pmax - pmin) / (std::pow(2.0f, 16) - 1.0f) : 1.0f;
 
 
