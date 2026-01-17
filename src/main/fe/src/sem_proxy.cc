@@ -1136,7 +1136,7 @@ void SEMproxy::run()
           float min = 999;
           float mean = 0;
 
-          float list[m_mesh->getNumberOfNodes()];
+          std::vector<float> list(m_mesh->getNumberOfNodes());
           float median = 0;
           for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
             float pressure = pnGlobal(nodeIndex, i1);
@@ -1147,12 +1147,10 @@ void SEMproxy::run()
               min = pressure;
             }
               mean += pressure;
-            
             list[nodeIndex] = pressure;
           }
 
-          std::sort(list, list + m_mesh->getNumberOfNodes());
-
+          std::sort(list.begin(), list.end());
           median = list[m_mesh->getNumberOfNodes()/2];
 
           float sd_somme = 0;
