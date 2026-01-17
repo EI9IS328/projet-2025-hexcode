@@ -133,6 +133,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   // save parameters
   is_snapshots_ = opt.isSnapshot;
+  is_sismos_ = opt.isSismo;
   is_slices_ = opt.isSlice;
   is_Quantify = opt.is_Quantify;
   is_RLE = opt.is_RLE;
@@ -160,9 +161,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
 
 
-  std::ifstream selectPointFile(opt.receiverfilename);
 
-  if(selectPointFile.is_open()){
+  std::ifstream selectPointFile(opt.receiverfilename);
+  if(is_sismos_ && selectPointFile.is_open()){
+    selectPoint.clear();
     std::string line;
     int x, y, z;
     int nodeIndex;
@@ -184,6 +186,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
       selectPoint.push_back(nodeIndex);
     }
+    if(selectPoint.size() == 0){
+        throw std::runtime_error("No valid receiver points found in the file.");
+      }
     selectPointFile.close();
 
   }
@@ -369,7 +374,7 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
   }
 
   long int sizefile_sismos = 0;
-  if(selectPoint.size() > 0){
+  if(is_sismos_){
     std::string sismofile;
     if(is_RLE){
       sismofile = data_folder_ + "sismos/sismo.rle";
@@ -1156,7 +1161,7 @@ void SEMproxy::run()
           totalOutputTime += system_clock::now() - startOutputTime;
       }
 
-      if(selectPoint.size() > 0){
+      if(is_sismos_){
 
         startTraitementTime = system_clock::now();
 
@@ -1207,7 +1212,7 @@ void SEMproxy::run()
         saveSliceAsPPM(indexTimeSample);
     }
 
-    if(selectPoint.size() > 0){
+    if(is_sismos_){
       if(is_RLE){
         compresseRLESismo(indexTimeSample);
       }
@@ -1248,7 +1253,7 @@ void SEMproxy::run()
   }
 
   if(is_in_situ){
-      if(selectPoint.size() > 0){
+      if(is_sismos_){
 
         startTraitementTime = system_clock::now();
 
