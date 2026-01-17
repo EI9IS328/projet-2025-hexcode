@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def read_measures(measures_path):
-    df = pd.read_csv(measures_path, delim_whitespace=True)
+    df = pd.read_csv(measures_path, sep=r'\s+')
     row = df.iloc[0]  
 
     return (
@@ -20,15 +20,15 @@ def read_measures(measures_path):
 
 
 def read_stat_compress(stat_path):
-    with open(stat_path, newline="") as f:
-        reader = csv.reader(f)
-        row = next(reader)
+    df = pd.read_csv(stat_path, sep=r'\s+', header=None)
+    row = df.iloc[0]  
 
     rmse_mean = float(row[0])
     rmse_max = float(row[1])
     rel_err = float(row[2])
 
     return rmse_mean, rmse_max, rel_err
+
 
 
 def append_global_csv(
