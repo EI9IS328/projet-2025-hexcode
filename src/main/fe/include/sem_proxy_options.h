@@ -30,6 +30,8 @@ class SemProxyOptions
   // snapshots
   bool isSnapshot = false;
   int snapTimeInterval = 50;
+  // simographe
+  bool isSismo = false;
   // compress
   bool is_Quantify = false;
   bool is_RLE = false;
@@ -89,7 +91,8 @@ class SemProxyOptions
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
         "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
-        "s,save-snapshots", "Save snapshots", cxxopts::value<bool>(o.isSnapshot))(
+        "save-snapshots", "Save snapshots", cxxopts::value<bool>(o.isSnapshot))(
+        "save-sismos", "Save sismographes", cxxopts::value<bool>(o.isSismo))(
         "save-interval", "Number of time steps between snapshots",
         cxxopts::value<int>(o.snapTimeInterval))(
         "save-slices", "Save slices", cxxopts::value<bool>(o.isSlice))(
