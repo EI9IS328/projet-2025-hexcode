@@ -387,13 +387,24 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
     sizefile_sismos += ftell(sismo);
     fclose(sismo);
   }
+
+  long int sizefile_ppm_slices = 0;
+  if(is_ppm_slices_){
+    for(int i = 0; i < num_sample_/snap_time_interval_; i++){
+      std::string ppm_slicefile = data_folder_ + "slice_images/slice_" + to_string(i) + ".ppm";
+      FILE *ppm_slice = open_file(ppm_slicefile);
+      fseek(ppm_slice, 0, SEEK_END);
+      sizefile_ppm_slices += ftell(ppm_slice);
+      fclose(ppm_slice);
+    }
+  }
   
   fseek(file, 0, SEEK_END);
   if (ftell(file) == 0) {
-    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos\n");
+    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos size_file_ppm_slices\n");
   }
 
-  fprintf(file, "%f %f %f %ld %ld %ld\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos);
+  fprintf(file, "%f %f %f %ld %ld %ld %ld\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos, sizefile_ppm_slices);
 
   fclose(file);
 }
