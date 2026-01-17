@@ -103,7 +103,7 @@ def run_semproxy(val_range, extra_flags=None):
 
 
         print(f"Lancement de la commande : {' '.join(cmd)}")
-        subprocess.run(cmd)  
+        subprocess.run(cmd,check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  
 
         data_dirs = sorted(glob("data/data_*"))
         if data_dirs:
