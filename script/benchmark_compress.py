@@ -154,7 +154,7 @@ def main():
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
             name="origin",
-            measures_path=os.path.join(orig, "measures.csv"),
+            measures_path=os.path.join(orig, "measure.csv"),
             stat_path=None
         )
 
@@ -163,7 +163,7 @@ def main():
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
             name="quant",
-            measures_path=os.path.join(quant, "measures.csv"),
+            measures_path=os.path.join(quant, "measure.csv"),
             stat_path=os.path.join(quant, "stat_compress.csv")
         )
 
@@ -172,7 +172,7 @@ def main():
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
             name="rle",
-            measures_path=os.path.join(rle, "measures.csv"),
+            measures_path=os.path.join(rle, "measure.csv"),
             stat_path=os.path.join(rle, "stat_compress.csv")
         )
 
@@ -181,7 +181,7 @@ def main():
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
             name="rle_quant",
-            measures_path=os.path.join(rle_quant, "measures.csv"),
+            measures_path=os.path.join(rle_quant, "measure.csv"),
             stat_path=os.path.join(rle_quant, "stat_compress.csv")
         )
 
