@@ -4,12 +4,14 @@ import pathlib
 import subprocess
 import sys
 import time
+import pandas as pd
 
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1] / "projet-2025-hexcode"
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 
-NUM_ELEMENTS = [5, 10, 15, 20, 25, 30]
+NUM_ELEMENTS = [10]
 SAVE_INTERVALS = [50, 100, 200]
+SAVE_TYPES = ["snapshots","sismos","ppm-slices"]
 
 def find_latest_data(path):
     p = pathlib.Path(path)
@@ -18,13 +20,6 @@ def find_latest_data(path):
     folder = sorted(p.glob("data_*"), key=lambda x: x.stat().st_mtime, reverse=True)
     return folder[0] if folder else None
 
-def parse_measure_file(path):
-    measures = {}
-    with open(path, "r") as f:
-        # TODO
-        pass
-    return measures
-
 def main():
     if sys.argv[1] is None:
         print("Usage: python3 benchmark.py [OUTPUT_CSV]", file=sys.stderr)
@@ -32,67 +27,77 @@ def main():
 
     outp = sys.argv[1]
     sep = " "
-    with open(outp, "w") as f:
+    with open(outp, "a+") as f:
         writer = csv.writer(f, delimiter=sep)
-        writer.writerow(["num_elements", "save_interval", "sem_seconds", "analysis_seconds", "total_seconds"])
+        writer.writerow(["num_elements", "save_interval", "save_type",
+                         "kernel_us", "output_us", "processing_us", "sem_seconds", "analysis_seconds", "total_seconds",
+                         "size_file_snapshots", "size_file_slices", "size_file_sismos", "size_analysis"])
 
-    for sizes in NUM_ELEMENTS:
+    for size in NUM_ELEMENTS:
         for interval in SAVE_INTERVALS:
-            sem_proxy_cmd = [sys.executable,
-                             str(PROJECT_ROOT / "build" / "bin" / "semproxy"),
-                             "--ex", str(sizes),
-                             "--ey", str(sizes),
-                             "--ez", str(sizes),
-                             "--mesh", "cartesian",
-                             "-s",
-                             "--save-sismos",
-                             "--save-interval", str(interval)]
-            
-            # Run semproxy
-            try:
-                subprocess.run(sem_proxy_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError as e:
-                print("semproxy failed with return code", e.returncode, file=sys.stderr)
-                sys.exit(1)
+            for save_type in SAVE_TYPES:
+                sem_proxy_cmd = [str(PROJECT_ROOT / "build" / "bin" / "semproxy"),
+                                "--ex", str(size),
+                                "--ey", str(size),
+                                "--ez", str(size),
+                                "--mesh", "cartesian",
+                                "--save-"+save_type,
+                                "--save-interval", str(interval)]
 
-            data_path = find_latest_data(DEFAULT_DATA_DIR)
+                # Run semproxy
+                try:
+                    subprocess.run(sem_proxy_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except subprocess.CalledProcessError as e:
+                    print("semproxy failed with return code", e.returncode, file=sys.stderr)
+                    sys.exit(1)
 
-            if not data_path.exists() or data_path is None:
-                print("Data not found:", data_path, file=sys.stderr)
-                sys.exit(2)
-            
-            if not (data_path / "mesure").exists():
-                print("Mesure file not found in:", data_path, file=sys.stderr)
-                sys.exit(3)
+                data_path = find_latest_data(DEFAULT_DATA_DIR)
 
-            measures = parse_measure_file(data_path / "")
+                if not data_path.exists() or data_path is None:
+                    print("Data not found:", data_path, file=sys.stderr)
+                    sys.exit(2)
+                
+                if not (data_path / "measure.csv").exists():
+                    print("Measure file not found in:", data_path, file=sys.stderr)
+                    sys.exit(3)
 
-            kernel_ms = measures.get("kernel")[0]
-            output_ms = measures.get("output")[0]
+                measures = pd.read_csv(data_path / "measure.csv", sep=' ')
 
-            sem_seconds = (kernel_ms + output_ms) / 1e6
+                kernel_us = measures["kernel_time"][0]
+                output_us = measures["output_time"][0]
+                processing_us = measures["traitement_time"][0]
 
-            # Run analysis.py
-            analysis_cmd = [sys.executable,
-                            str(PROJECT_ROOT / "script" / "analysis.py"),
-                            "-m", "all",
-                            "-d", str(data_path),
-                            "-o", str(data_path / "analysis_results.csv")]
-            t0 = time.perf_counter()
-            try:
-                subprocess.run(analysis_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError as e:
-                print("analysis.py failed with return code", e.returncode, file=sys.stderr)
-                sys.exit(4)
-            t1 = time.perf_counter()
-            analysis_seconds = t1 - t0
+                sem_seconds = (kernel_us + output_us + processing_us) / 1e6
 
-            total_seconds = sem_seconds + analysis_seconds
+                analysis_seconds = 0
+                if save_type!="ppm-slices":
+                    # Run analysis.py
+                    analysis_cmd = [sys.executable,
+                                    str(PROJECT_ROOT / "script" / "analysis.py"),
+                                    "-m", save_type,
+                                    "-d", str(data_path),
+                                    "-o", str(data_path / "analysis_results.csv")]
+                    t0 = time.perf_counter()
+                    try:
+                        subprocess.run(analysis_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except subprocess.CalledProcessError as e:
+                        print("analysis.py failed with return code", e.returncode, file=sys.stderr)
+                        sys.exit(4)
+                    t1 = time.perf_counter()
+                    analysis_seconds = t1 - t0
 
-            # Write to CSV
-            with open(outp, "a") as f:
-                writer = csv.writer(f, delimiter=sep)
-                writer.writerow([sizes, interval, sem_seconds, analysis_seconds, total_seconds])
+                total_seconds = sem_seconds + analysis_seconds
+
+                size_analysis = 0
+                if save_type!="ppm-slices":
+                    size_analysis = (data_path / "analysis_results.csv").stat().st_size
+
+                # Write to CSV
+                with open(outp, "a") as f:
+                    writer = csv.writer(f, delimiter=sep)
+                    writer.writerow([size, interval, save_type,
+                         kernel_us, output_us, processing_us, sem_seconds, analysis_seconds, total_seconds,
+                         measures["size_file_snapshots"][0], measures["size_file_slices"][0], measures["size_file_sismos"][0], size_analysis])
 
 
 if __name__ == "__main__":

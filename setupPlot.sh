@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ENV_NAME="plot_env"
+ENV_NAME=".plot_env"
 
 python3 -m venv $ENV_NAME
 

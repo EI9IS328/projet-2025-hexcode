@@ -8,7 +8,7 @@ import csv
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('-m', '--mode', type=str,
-                    help="Range of analysis: 'snapshot' or 'sismo'", default='snapshot')
+                    help="Range of analysis: 'snapshots' or 'sismos'", default='snapshots')
     ap.add_argument('-d', '--data-folder', type=pathlib.Path, help="Folder containing the data")
     ap.add_argument('-o', '--output', type=str, default='analysis_results.csv',
                     help="Output CSV file name (default: analysis_results.csv)")
@@ -20,17 +20,17 @@ def main():
 
     if not data_folder.is_dir():
             print("Data folder must be a directory")
-            sys.exit(1)
+            sys.exit(2)
 
     data_files = []
-    if mode == 'snapshot':
+    if mode == 'snapshots':
         data_files = [f for f in (data_folder / 'snapshots').glob("snapshot_*") if f.is_file()]
     else:
-        data_files = [f for f in (data_folder / 'sismos').glob("sismo") if f.is_file()]
+        data_files = [f for f in (data_folder / 'sismos').glob("sismo.csv") if f.is_file()]
 
     if data_files == []:
         print("No CSV files found in the specified directory")
-        sys.exit(1)
+        sys.exit(3)
     
     data_frames = []
     for file in data_files:
@@ -41,12 +41,12 @@ def main():
 
     with open(outp, 'w') as f:
         writer = csv.writer(f, delimiter=' ')
-        if mode == 'snapshot':
+        if mode == 'snapshots':
             writer.writerow(["timestep", "min", "max", "mean", "median", "std"])
         else:
             writer.writerow(["receiver_index", "min", "max", "mean", "median", "std"])
 
-    if mode == 'snapshot':
+    if mode == 'snapshots':
         with open(outp, 'a') as f:
             writer = csv.writer(f, delimiter=' ')
             writer.writerow(["global",
@@ -56,12 +56,12 @@ def main():
                              data['pressure'].median(),
                              data['pressure'].std()])
     index = []
-    if mode == 'simso':
+    if mode == 'simsos':
         index = data['index'].unique()
     else:
         index = data['timestep'].unique()
     for i in index:
-        row_data:pd.DataFrame = data[data['timestep'] == i] if mode == 'snapshot' else data[data['index'] == i]
+        row_data:pd.DataFrame = data[data['timestep'] == i] if mode == 'snapshots' else data[data['index'] == i]
         with open(outp, 'a') as f:
             writer = csv.writer(f, delimiter=' ')
             writer.writerow([i,
