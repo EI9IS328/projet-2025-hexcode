@@ -329,7 +329,7 @@ void SEMproxy::compresseRLESismo(int timestep)
   fclose(file);
 }
 
-void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float traitementtime_ms = 0.0f) {
+void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float traitementtime_ms = 0.0f,float writtinfSnapTime = 0.0f) {
   string filename = data_folder_ + "measure.csv";
   FILE *file = open_file(filename);
 
@@ -390,10 +390,10 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
   
   fseek(file, 0, SEEK_END);
   if (ftell(file) == 0) {
-    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos\n");
+    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos writting_snapshots_time\n");
   }
 
-  fprintf(file, "%f %f %f %ld %ld %ld\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos);
+  fprintf(file, "%f %f %f %ld %ld %ld %f\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos,writtinfSnapTime);
 
   fclose(file);
 }
@@ -1104,7 +1104,7 @@ void SEMproxy::run()
   
   float sismos[selectPoint.size()][num_sample_];
   time_point<system_clock> startComputeTime, startOutputTime,startTraitementTime, totalTraitementTime, totalComputeTime,
-      totalOutputTimeOneStep,totalOutputTime;
+      totalOutputTimeOneStep,totalOutputTime,writtingSnapTime,startWritting;
 
   SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement,
                                    rhsWeights);
@@ -1193,12 +1193,14 @@ void SEMproxy::run()
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
       if (is_snapshots_){
+        system_clock::time_point startWritting = system_clock::now();
         if(is_Quantify){
           saveCompressSnapshot(indexTimeSample);
         }
           else{
           saveSnapshot(indexTimeSample);
         }   
+        writtingSnapTime += system_clock::now() - startWritting;
       }  
       if (is_slices_){
         if(is_Quantify){
@@ -1287,13 +1289,17 @@ void SEMproxy::run()
   float outputtime_ms =
       time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
 
+  float writting_ms =
+      time_point_cast<microseconds>(writtingSnapTime).time_since_epoch().count();
+
+
   if(!is_in_situ){
     saveMeasure(kerneltime_ms,outputtime_ms);
   }
   else{
     float traitementtime_ms =
         time_point_cast<microseconds>(totalTraitementTime).time_since_epoch().count();
-    saveMeasure(kerneltime_ms,outputtime_ms,traitementtime_ms);
+    saveMeasure(kerneltime_ms,outputtime_ms,traitementtime_ms,writting_ms);
   }
 
 

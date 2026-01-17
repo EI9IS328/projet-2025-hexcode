@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import sys
+import csv
 
 original_dir = sys.argv[1]
 recon_dir = sys.argv[2]
@@ -44,8 +45,22 @@ for filename in sorted(os.listdir(original_dir)):
 
     print(f"{filename} → RMSE = {rmse:.6e}, RelMax = {rel_max:.6e}")
 
+rmse_moyenne = np.mean(rmse_list)
+rmse_max = np.max(rmse_list)
+rel_max = np.max(rel_max_list)
+
+recon_dir_abs = os.path.abspath(recon_dir)
+parent_dir = os.path.dirname(recon_dir_abs)
+output_path = os.path.join(parent_dir, "stat_compress.csv")
+
+with open(output_path, "a", newline="") as csvfile:
+    writer = csv.writer(csvfile, delimiter=' ')
+    writer.writerow([f"{rmse_moyenne:.6e}", f"{rmse_max:.6e}", f"{rel_max:.6e}"])
+
+
+
 print("\n===== STATISTIQUES GLOBALES =====")
-print(f"RMSE moyen          : {np.mean(rmse_list):.6e}")
-print(f"RMSE max            : {np.max(rmse_list):.6e}")
-print(f"Erreur relative max : {np.max(rel_max_list):.6e}")
+print(f"RMSE moyen          : {rmse_moyenne:.6e}")
+print(f"RMSE max            : {rmse_max:.6e}")
+print(f"Erreur relative max : {rel_max:.6e}")
 
