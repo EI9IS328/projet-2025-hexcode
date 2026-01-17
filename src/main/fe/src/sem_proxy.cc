@@ -407,8 +407,8 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
     sizefile_analysis += ftell(analysis);
     fclose(analysis);
 
-    std::string analysisfile = data_folder_ + "snapshot_analysis.csv";
-    FILE *analysis = open_file(analysisfile);
+    analysisfile = data_folder_ + "snapshot_analysis.csv";
+    analysis = open_file(analysisfile);
     fseek(analysis, 0, SEEK_END);
     sizefile_analysis += ftell(analysis);
     fclose(analysis);

@@ -61,7 +61,8 @@ def main():
             "size_file_snapshots",
             "size_file_slices",
             "size_file_sismos",
-            "size_file_ppm_slices"
+            "size_file_ppm_slices",
+            "size_file_analysis"
         ])
 
     for sizes in NUM_ELEMENTS:
