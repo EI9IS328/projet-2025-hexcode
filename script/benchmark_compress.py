@@ -92,7 +92,7 @@ def run_semproxy(val_range, extra_flags=None):
 
     for val in val_range:
         cmd = [
-            "./bin/semproxy",
+            "./build/bin/semproxy",
             f"--ex={val}",
             f"--ey={val}",
             f"--ez={val}",

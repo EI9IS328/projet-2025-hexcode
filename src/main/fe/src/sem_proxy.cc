@@ -1193,7 +1193,7 @@ void SEMproxy::run()
       m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
                                      pnGlobal, "pnGlobal");
       if (is_snapshots_){
-        system_clock::time_point startWritting = system_clock::now();
+        startWritting = system_clock::now();
         if(is_Quantify){
           saveCompressSnapshot(indexTimeSample);
         }
@@ -1294,12 +1294,12 @@ void SEMproxy::run()
 
 
   if(!is_in_situ){
-    saveMeasure(kerneltime_ms,outputtime_ms);
+    saveMeasure(kerneltime_ms,outputtime_ms,0,writting_ms);
   }
   else{
     float traitementtime_ms =
         time_point_cast<microseconds>(totalTraitementTime).time_since_epoch().count();
-    saveMeasure(kerneltime_ms,outputtime_ms,traitementtime_ms,writting_ms);
+    saveMeasure(kerneltime_ms,outputtime_ms,traitementtime_ms);
   }
 
 
