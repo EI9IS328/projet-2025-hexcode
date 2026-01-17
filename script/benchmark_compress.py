@@ -4,17 +4,20 @@ import subprocess
 import os
 from glob import glob
 import csv
+import pandas as pd
+
 
 def read_measures(measures_path):
-    with open(measures_path, newline="") as f:
-        reader = csv.DictReader(f)
-        row = next(reader)
+    df = pd.read_csv(measures_path, delim_whitespace=True)
+    row = df.iloc[0]  
 
     return (
         float(row["kernel_time"]),
         float(row["size_file_snapshots"]),
         float(row["writting_snapshots_time"]),
+        float(row.get("size_file_sismos", 0.0)),  
     )
+
 
 def read_stat_compress(stat_path):
     with open(stat_path, newline="") as f:
@@ -28,7 +31,6 @@ def read_stat_compress(stat_path):
     return rmse_mean, rmse_max, rel_err
 
 
-
 def append_global_csv(
     csv_path,
     ex, ey, ez,
@@ -36,7 +38,7 @@ def append_global_csv(
     measures_path,
     stat_path=None
 ):
-    kernel_time, size_snap, write_time = read_measures(measures_path)
+    kernel_time, size_snap, write_time, size_sismos = read_measures(measures_path)
 
     if stat_path is not None and os.path.exists(stat_path):
         rmse_mean, rmse_max, rel_err = read_stat_compress(stat_path)
@@ -50,28 +52,22 @@ def append_global_csv(
             kernel_time,
             size_snap,
             write_time,
+            size_sismos,
             rmse_mean,
             rmse_max,
             rel_err
         ])
 
+
 def run_decompress(tab_path):
     for path in tab_path:
         subprocess.run(["python3", "./script/decompress.py", path])
 
-def run_rmse(original_dirs, compressed_dirs):
 
+def run_rmse(original_dirs, compressed_dirs):
     for orig, comp in zip(original_dirs, compressed_dirs):
         orig_snap = os.path.join(orig, "snapshots")
         comp_snap = os.path.join(comp, "snapshots")
-
-        if not os.path.isdir(orig_snap):
-            print(f"Original snapshots don't exist: {orig_snap}")
-            continue
-
-        if not os.path.isdir(comp_snap):
-            print(f"Compressed snapshots don't exist : {comp_snap}")
-            continue
 
         cmd = [
             "python3",
@@ -81,7 +77,6 @@ def run_rmse(original_dirs, compressed_dirs):
         ]
 
         subprocess.run(cmd, check=True)
-
 
 
 def run_semproxy(val_range, extra_flags=None):
@@ -101,9 +96,7 @@ def run_semproxy(val_range, extra_flags=None):
             "--save-interval", "100"
         ] + extra_flags
 
-
-        print(f"Lancement de la commande : {' '.join(cmd)}")
-        subprocess.run(cmd,check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  
+        subprocess.run(cmd, check=True)
 
         data_dirs = sorted(glob("data/data_*"))
         if data_dirs:
@@ -126,7 +119,7 @@ def main():
     run_decompress(compressed_rle_dirs)
     run_decompress(compressed_rle_quant_dirs)
 
-    run_rmse(original_dirs,compressed_quant_dirs)
+    run_rmse(original_dirs, compressed_quant_dirs)
 
     global_csv = "results.csv"
 
@@ -137,6 +130,7 @@ def main():
             "kernel_time",
             "size_file_snapshots",
             "writting_snapshots_time",
+            "size_file_sismos",
             "RMSE_moyen",
             "RMSE_max",
             "Erreur_relative"
@@ -149,7 +143,6 @@ def main():
         compressed_rle_dirs,
         compressed_rle_quant_dirs
     ):
-        # ORIGIN
         append_global_csv(
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
@@ -158,7 +151,6 @@ def main():
             stat_path=None
         )
 
-        # QUANT
         append_global_csv(
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
@@ -167,7 +159,6 @@ def main():
             stat_path=os.path.join(quant, "stat_compress.csv")
         )
 
-        # RLE
         append_global_csv(
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
@@ -176,7 +167,6 @@ def main():
             stat_path=os.path.join(rle, "stat_compress.csv")
         )
 
-        # RLE + QUANT
         append_global_csv(
             csv_path=global_csv,
             ex=val, ey=val, ez=val,
@@ -186,9 +176,5 @@ def main():
         )
 
 
-
-
-
 if __name__ == "__main__":
     main()
-
