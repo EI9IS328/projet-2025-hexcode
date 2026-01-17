@@ -96,7 +96,7 @@ def run_semproxy(val_range, extra_flags=None):
             "--save-interval", "100"
         ] + extra_flags
 
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True,stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         data_dirs = sorted(glob("data/data_*"))
         if data_dirs:
