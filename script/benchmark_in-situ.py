@@ -3,92 +3,139 @@ import csv
 import pathlib
 import subprocess
 import sys
-import time
 import pandas as pd
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = "data"
 
-NUM_ELEMENTS = [10,20,30,40,50,60,70,80,90,100]
+NUM_ELEMENTS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 SAVE_INTERVALS = [50, 100, 200]
+
+# Save configurations: label -> CLI option
+SAVE_CONFIGS = {
+    "snapshots": ["--save-snapshots"],
+    "sismos": ["--save-sismos"],
+    "slices": ["--save-slices"],
+    "ppm_slices": ["--save-ppm-slices"],
+}
+
 
 def find_latest_data(path):
     p = pathlib.Path(path)
     if not p.exists():
         return None
-    folder = sorted(p.glob("data_*"), key=lambda x: x.stat().st_mtime, reverse=True)
-    return folder[0] if folder else None
+    folders = sorted(
+        p.glob("data_*"),
+        key=lambda x: x.stat().st_mtime,
+        reverse=True
+    )
+    return folders[0] if folders else None
+
 
 def parse_measure_file(path):
-    measures = {}
-    with open(path, "r") as f:
-        data = pd.read_csv(f,sep=" ")
-        for key in data.columns:
-            measures[key] = data[key].tolist() 
-        pass
-    return measures
+    data = pd.read_csv(path, sep=" ")
+    return data.iloc[0]
+
 
 def main():
-    if len (sys.argv) < 2:
+    if len(sys.argv) < 2:
         print("Usage: python3 benchmark_in-situ.py [OUTPUT_CSV]", file=sys.stderr)
         sys.exit(1)
 
     outp = sys.argv[1]
     sep = " "
+
+    # Header
     with open(outp, "w") as f:
         writer = csv.writer(f, delimiter=sep)
-        writer.writerow(["num_elements", "save_interval", "sem_seconds", "analysis_seconds", "total_seconds","size_simsos_file","size_snapshots_file","size_slices_file","size_ppm_slices_file"])
+        writer.writerow([
+            "num_elements",
+            "save_interval",
+            "save_type",
+            "kernel_us",
+            "output_us",
+            "processing_us",
+            "sem_seconds",
+            "analysis_seconds",
+            "total_seconds",
+            "size_file_snapshots",
+            "size_file_slices",
+            "size_file_sismos",
+            "size_file_ppm_slices"
+        ])
 
     for sizes in NUM_ELEMENTS:
         for interval in SAVE_INTERVALS:
-            sem_proxy_cmd = [
-                             str(PROJECT_ROOT / "build" / "bin" / "semproxy"),
-                             "--ex", str(sizes),
-                             "--ey", str(sizes),
-                             "--ez", str(sizes),
-                             "--save-snapshots",
-                             "--save-sismos",
-                             "--save-slices",
-                             "--save-ppm-slices",
-                             "--in-situ",
-                             "--save-interval", str(interval)]
-            
-            # Run semproxy
-            try:
-                subprocess.run(sem_proxy_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError as e:
-                print("semproxy failed with return code", e.returncode, file=sys.stderr)
-                sys.exit(1)
+            for save_type, save_flags in SAVE_CONFIGS.items():
 
-            data_path = find_latest_data(DEFAULT_DATA_DIR)
+                sem_proxy_cmd = [
+                    str(PROJECT_ROOT / "build" / "bin" / "semproxy"),
+                    "--ex", str(sizes),
+                    "--ey", str(sizes),
+                    "--ez", str(sizes),
+                    "--in-situ",
+                    "--save-interval", str(interval),
+                    *save_flags
+                ]
 
-            if not data_path.exists() or data_path is None:
-                print("Data not found:", data_path, file=sys.stderr)
-                sys.exit(2)
-            
-            if not (data_path / "measure.csv").exists():
-                print("Measure file not found in:", data_path, file=sys.stderr)
-                sys.exit(3)
+                try:
+                    subprocess.run(
+                        sem_proxy_cmd,
+                        check=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                except subprocess.CalledProcessError as e:
+                    print("semproxy failed:", e.returncode, file=sys.stderr)
+                    sys.exit(1)
 
-            measures = parse_measure_file(data_path / "measure.csv")
+                data_path = find_latest_data(DEFAULT_DATA_DIR)
+                if data_path is None:
+                    print("No data directory found", file=sys.stderr)
+                    sys.exit(2)
 
-            kernel_ms = measures.get("kernel_time")[0]
-            output_ms = measures.get("output_time")[0]
-            traitement_ms = measures.get("traitement_time")[0]
+                measure_file = data_path / "measure.csv"
+                if not measure_file.exists():
+                    print("measure.csv not found in:", data_path, file=sys.stderr)
+                    sys.exit(3)
 
-            sem_seconds = (kernel_ms + output_ms) / 1e6
-            analysis_seconds = traitement_ms / 1e6
-            total_seconds = sem_seconds + analysis_seconds
-            
-            size_simsos_file = measures.get("size_file_sismos")[0]
-            size_snapshots_file = measures.get("size_file_snapshots")[0]
-            size_slices_file = measures.get("size_file_slices")[0]
-            size_ppm_slices_file = measures.get("size_file_ppm_slices")[0]
+                m = parse_measure_file(measure_file)
 
-            # Write to CSV
-            with open(outp, "a") as f:
-                writer = csv.writer(f, delimiter=sep)
-                writer.writerow([sizes, interval, sem_seconds, analysis_seconds, total_seconds, size_simsos_file, size_snapshots_file, size_slices_file, size_ppm_slices_file])
+                # Raw times (µs)
+                kernel_us = m["kernel_time"]
+                output_us = m["output_time"]
+                processing_us = m["traitement_time"]
+
+                # Aggregated times (s)
+                sem_seconds = (kernel_us + output_us) / 1e6
+                analysis_seconds = processing_us / 1e6
+                total_seconds = sem_seconds + analysis_seconds
+
+                # File sizes (bytes)
+                size_file_snapshots = m.get("size_file_snapshots", 0)
+                size_file_slices = m.get("size_file_slices", 0)
+                size_file_sismos = m.get("size_file_sismos", 0)
+                size_file_ppm_slices = m.get("size_file_ppm_slices", 0)
+                size_file_analysis = m.get("size_file_analysis", 0)
+                # Write result
+                with open(outp, "a") as f:
+                    writer = csv.writer(f, delimiter=sep)
+                    writer.writerow([
+                        sizes,
+                        interval,
+                        save_type,
+                        kernel_us,
+                        output_us,
+                        processing_us,
+                        sem_seconds,
+                        analysis_seconds,
+                        total_seconds,
+                        size_file_snapshots,
+                        size_file_slices,
+                        size_file_sismos,
+                        size_file_ppm_slices,
+                        size_file_analysis
+                    ])
 
 
 if __name__ == "__main__":

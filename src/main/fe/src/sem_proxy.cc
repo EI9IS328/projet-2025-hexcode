@@ -398,10 +398,25 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
       fclose(ppm_slice);
     }
   }
+
+  long int sizefile_analysis = 0;
+  if(is_in_situ){
+    std::string analysisfile = data_folder_ + "receiver_analysis.csv";
+    FILE *analysis = open_file(analysisfile);
+    fseek(analysis, 0, SEEK_END);
+    sizefile_analysis += ftell(analysis);
+    fclose(analysis);
+
+    std::string analysisfile = data_folder_ + "snapshot_analysis.csv";
+    FILE *analysis = open_file(analysisfile);
+    fseek(analysis, 0, SEEK_END);
+    sizefile_analysis += ftell(analysis);
+    fclose(analysis);
+  }
   
   fseek(file, 0, SEEK_END);
   if (ftell(file) == 0) {
-    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos size_file_ppm_slices\n");
+    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos size_file_ppm_slices size_file_analysis\n");
   }
 
   fprintf(file, "%f %f %f %ld %ld %ld %ld\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos, sizefile_ppm_slices);
