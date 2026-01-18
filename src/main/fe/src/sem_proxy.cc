@@ -387,13 +387,42 @@ void SEMproxy::saveMeasure(float kerneltime_ms, float outputtime_ms, float trait
     sizefile_sismos += ftell(sismo);
     fclose(sismo);
   }
+
+  long int sizefile_ppm_slices = 0;
+  if(is_ppm_slices_){
+    for(int i = 0; i < num_sample_/snap_time_interval_; i++){
+      std::string ppm_slicefile = data_folder_ + "slice_images/slice_" + to_string(i) + ".ppm";
+      FILE *ppm_slice = open_file(ppm_slicefile);
+      fseek(ppm_slice, 0, SEEK_END);
+      sizefile_ppm_slices += ftell(ppm_slice);
+      fclose(ppm_slice);
+    }
+  }
+
+  long int sizefile_analysis = 0;
+  if(is_in_situ){
+    if(is_sismos_){
+      std::string sismofile = data_folder_ + "receiver_analysis.csv";
+      FILE *sismo_analysis = open_file(sismofile);
+      fseek(sismo_analysis, 0, SEEK_END);
+      sizefile_analysis += ftell(sismo_analysis);
+      fclose(sismo_analysis);
+    }
+    if(is_snapshots_){
+      std::string snapshotfile = data_folder_ + "snapshot_analysis.csv";
+      FILE *snapshot_analysis = open_file(snapshotfile);
+      fseek(snapshot_analysis, 0, SEEK_END);
+      sizefile_analysis += ftell(snapshot_analysis);
+      fclose(snapshot_analysis);
+    }
+  }
   
   fseek(file, 0, SEEK_END);
   if (ftell(file) == 0) {
-    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos writting_snapshots_time\n");
+    fprintf(file, "kernel_time output_time traitement_time size_file_snapshots size_file_slices size_file_sismos size_file_ppm_slices size_file_analysis writting_snapshots_time\n");
   }
 
-  fprintf(file, "%f %f %f %ld %ld %ld %f\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos,writtinfSnapTime);
+  fprintf(file, "%f %f %f %ld %ld %ld %ld %ld %f\n", kerneltime_ms, outputtime_ms, traitementtime_ms, sizefile_snapshots, sizefile_slices, sizefile_sismos, sizefile_ppm_slices, sizefile_analysis,writtinfSnapTime);
 
   fclose(file);
 }
@@ -1110,7 +1139,7 @@ void SEMproxy::run()
           float min = 999;
           float mean = 0;
 
-          float list[m_mesh->getNumberOfNodes()];
+          std::vector<float> list(m_mesh->getNumberOfNodes());
           float median = 0;
           for (int nodeIndex = 0; nodeIndex < m_mesh->getNumberOfNodes(); nodeIndex++) {
             float pressure = pnGlobal(nodeIndex, i1);
@@ -1121,12 +1150,10 @@ void SEMproxy::run()
               min = pressure;
             }
               mean += pressure;
-            
             list[nodeIndex] = pressure;
           }
 
-          std::sort(list, list + m_mesh->getNumberOfNodes());
-
+          std::sort(list.begin(), list.end());
           median = list[m_mesh->getNumberOfNodes()/2];
 
           float sd_somme = 0;
