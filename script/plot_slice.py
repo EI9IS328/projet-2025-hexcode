@@ -39,7 +39,7 @@ ax = plt.gca()
 ax.xaxis.set_major_formatter(mticker.FormatStrFormatter('%d'))
 ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('%d'))
 
-plt.suptitle("Pressure Field 2D Slices - " + tstep)
+plt.suptitle("Pressure Field 2D Slices - Timestep = " + tstep)
 
 plt.subplots_adjust(wspace=0.5, hspace=0.6)
 plt.show()

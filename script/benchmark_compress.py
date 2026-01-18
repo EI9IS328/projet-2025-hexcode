@@ -128,9 +128,12 @@ def main():
         writer.writerow([
             "ex", "ey", "ez", "name",
             "kernel_time",
+            "output_time",
+            "traitement_time",
             "size_file_snapshots",
-            "writting_snapshots_time",
+            "size_file_slices",
             "size_file_sismos",
+            "writting_snapshots_time",
             "RMSE_moyen",
             "RMSE_max",
             "Erreur_relative"
