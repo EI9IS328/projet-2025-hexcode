@@ -84,6 +84,8 @@ The following options can be used to configure your build:
 ### Step 1: Load package
 
 ```sh
+# Env to load plot package
+bash plot_env.sh
 
 # Only load base packages
 pip install -r requirements.txt
@@ -101,6 +103,9 @@ python3 script/benchmark_ad-hoc.py  <file result.csv>
 
 # Run in-situ benchmark
 python3 script/benchmark_in-situ.py <file result.csv>
+
+# Run compress benchmark
+python3 script/benchmark_compress.py #Create a result.csv file at root project
 ```
 
 ### Step 3: Run plot
@@ -111,4 +116,14 @@ python3 script/plot_ad_hoc_perf.py <file result.csv>
 
 # Run in-situ and ad hoc vs in situ plot
 python3 script/plot_in-situ.py <file result.csv>
+
+# Run compress plot
+python3 script/plot_compress.py <file result.csv>
+
+# Run slice plot
+python3 script/plot_slice.py <file slice.csv>
+
+# Run sismo plot
+python3 script/plot_sismo.py <file sismo.csv>
+
 ```
