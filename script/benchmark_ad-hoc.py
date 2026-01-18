@@ -10,7 +10,7 @@ import os
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 
-NUM_ELEMENTS = [10] #[i for i in range(10, 81, 10)]
+NUM_ELEMENTS = [i for i in range(10, 81, 10)]
 SAVE_INTERVALS = [50, 100, 200]
 SAVE_TYPES = ["snapshots","sismos"]
 
