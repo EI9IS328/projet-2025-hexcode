@@ -174,7 +174,7 @@ def write_quanti_csv(df, output_file):
 # -----------------------
 
 if len(sys.argv) != 2:
-    print("Usage: python decompress_pandas.py <directory>")
+    print("Usage: python decompress.py <directory>")
     sys.exit(1)
 
 root_dir = sys.argv[1]

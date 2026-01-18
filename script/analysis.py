@@ -56,7 +56,7 @@ def main():
                              data['pressure'].median(),
                              data['pressure'].std()])
     index = []
-    if mode == 'simsos':
+    if mode == 'sismos':
         index = data['index'].unique()
     else:
         index = data['timestep'].unique()
