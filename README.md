@@ -78,3 +78,37 @@ The following options can be used to configure your build:
 
 ---
 
+
+## Experiments
+
+### Step 1: Load package
+
+```sh
+
+# Only load base packages
+pip install -r requirements.txt
+
+# Load developer packages
+pip install -r requirements-dev.txt
+
+```
+
+### Step 2: Run Benchmark
+
+```sh
+# Run ad hoc benchmark
+python3 script/benchmark_ad-hoc.py  <file result.csv>
+
+# Run in-situ benchmark
+python3 script/benchmark_in-situ.py <file result.csv>
+```
+
+### Step 3: Run plot
+
+```sh
+# Run ad hoc plot
+python3 script/plot_ad_hoc_perf.py <file result.csv>
+
+# Run in-situ and ad hoc vs in situ plot
+python3 script/plot_in-situ.py <file result.csv>
+```
