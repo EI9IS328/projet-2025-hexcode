@@ -11,6 +11,7 @@ def main():
     csv_file = sys.argv[1]
 
     df = pd.read_csv(csv_file, sep=" ")
+    df= df[df["approche"] == "ad-hoc"]
     snap_df = df[df["save_type"] == "snapshots"]
     sismo_df = df[df["save_type"] == "sismos"]
     sismo_df = sismo_df[sismo_df["save_interval"] == 100]

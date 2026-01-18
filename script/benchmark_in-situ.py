@@ -4,9 +4,10 @@ import pathlib
 import subprocess
 import sys
 import pandas as pd
+import os
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_DATA_DIR = "data"
+DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 
 NUM_ELEMENTS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 SAVE_INTERVALS = [50, 100, 200]
@@ -46,24 +47,29 @@ def main():
     sep = " "
 
     # Header
-    with open(outp, "w") as f:
+    is_empty = not os.path.exists(outp) or os.path.getsize(outp) == 0
+
+    with open(outp, "a", newline="") as f:
         writer = csv.writer(f, delimiter=sep)
-        writer.writerow([
-            "num_elements",
-            "save_interval",
-            "save_type",
-            "kernel_us",
-            "output_us",
-            "processing_us",
-            "sem_seconds",
-            "analysis_seconds",
-            "total_seconds",
-            "size_file_snapshots",
-            "size_file_slices",
-            "size_file_sismos",
-            "size_file_ppm_slices",
-            "size_file_analysis"
-        ])
+
+        if is_empty:
+            writer.writerow([
+                "approche",
+                "num_elements",
+                "save_interval",
+                "save_type",
+                "kernel_us",
+                "output_us",
+                "processing_us",
+                "sem_seconds",
+                "analysis_seconds",
+                "total_seconds",
+                "size_file_snapshots",
+                "size_file_slices",
+                "size_file_sismos",
+                "size_file_ppm_slices",
+                "size_file_analysis"
+            ])
 
     for sizes in NUM_ELEMENTS:
         for interval in SAVE_INTERVALS:
@@ -91,9 +97,11 @@ def main():
                     sys.exit(1)
 
                 data_path = find_latest_data(DEFAULT_DATA_DIR)
-                if data_path is None:
-                    print("No data directory found", file=sys.stderr)
+
+                if not data_path.exists() or data_path is None:
+                    print("Data not found:", data_path, file=sys.stderr)
                     sys.exit(2)
+                    
 
                 measure_file = data_path / "measure.csv"
                 if not measure_file.exists():
@@ -122,6 +130,7 @@ def main():
                 with open(outp, "a") as f:
                     writer = csv.writer(f, delimiter=sep)
                     writer.writerow([
+                        "in-situ",
                         sizes,
                         interval,
                         save_type,

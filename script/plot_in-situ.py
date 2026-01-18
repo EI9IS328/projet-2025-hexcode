@@ -11,7 +11,7 @@ def main():
     csv_file = sys.argv[1]
 
     # Lecture du CSV
-    df = pd.read_csv(csv_file, sep=",")
+    df = pd.read_csv(csv_file, sep=" ")
 
     SAVE_INTERVAL = 100
 
@@ -47,7 +47,6 @@ def main():
     plt.grid(True)
     plt.tight_layout()
     plt.savefig("stackplot_sismos_in_situ.png")
-    plt.show()
 
     # ==================================================
     # STACKPLOT 2 — SNAPSHOTS (in-situ)
@@ -75,7 +74,6 @@ def main():
     plt.grid(True)
     plt.tight_layout()
     plt.savefig("stackplot_snapshots_in_situ.png")
-    plt.show()
     
     SAVE_INTERVAL = 100
     df = df[df["save_interval"] == SAVE_INTERVAL]
@@ -132,7 +130,7 @@ def main():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    plt.savefig("Comparaison_ad_hoc_in_situ_sismos.png")
 
     # ===============================
     # -------- GRAPHE 2 : SNAPSHOTS
@@ -186,7 +184,8 @@ def main():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    plt.savefig("Comparaison_ad_hoc_in_situ_snapshots.png")
+
 
 if __name__ == "__main__":
     main()

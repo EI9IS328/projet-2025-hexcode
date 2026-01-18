@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 import pandas as pd
+import os
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
@@ -27,11 +28,29 @@ def main():
 
     outp = sys.argv[1]
     sep = " "
-    with open(outp, "w+") as f:
+    is_empty = not os.path.exists(outp) or os.path.getsize(outp) == 0
+
+    with open(outp, "a", newline="") as f:
         writer = csv.writer(f, delimiter=sep)
-        writer.writerow(["num_elements", "save_interval", "save_type",
-                         "kernel_us", "output_us", "processing_us", "sem_seconds", "analysis_seconds", "total_seconds",
-                         "size_file_snapshots", "size_file_slices", "size_file_sismos", "size_analysis"])
+
+        if is_empty:
+            writer.writerow([
+                "approche",
+                "num_elements",
+                "save_interval",
+                "save_type",
+                "kernel_us",
+                "output_us",
+                "processing_us",
+                "sem_seconds",
+                "analysis_seconds",
+                "total_seconds",
+                "size_file_snapshots",
+                "size_file_slices",
+                "size_file_sismos",
+                "size_file_ppm_slices",
+                "size_file_analysis"
+            ])
 
     for size in NUM_ELEMENTS:
         for save_type in SAVE_TYPES:
@@ -93,9 +112,9 @@ def main():
                     # Write to CSV
                     with open(outp, "a") as f:
                         writer = csv.writer(f, delimiter=sep)
-                        writer.writerow([size, interval, save_type,
+                        writer.writerow(["ad-hoc",size, interval, save_type,
                             kernel_us, output_us, processing_us, sem_seconds, analysis_seconds, total_seconds,
-                            measures["size_file_snapshots"][0], measures["size_file_slices"][0], measures["size_file_sismos"][0], size_analysis])
+                            measures["size_file_snapshots"][0], measures["size_file_slices"][0], measures["size_file_sismos"][0],measures["size_file_ppm_slices"][0], size_analysis])
 
 
 if __name__ == "__main__":
