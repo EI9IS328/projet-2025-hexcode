@@ -9,14 +9,18 @@ import pandas as pd
 
 def read_measures(measures_path):
     df = pd.read_csv(measures_path, sep=r'\s+')
-    row = df.iloc[0]  
+    row = df.iloc[0]
 
     return (
-        float(row["kernel_time"]),
-        float(row["size_file_snapshots"]),
-        float(row["writting_snapshots_time"]),
-        float(row.get("size_file_sismos", 0.0)),  
+        float(row.get("kernel_time", 0.0)),
+        float(row.get("output_time", 0.0)),
+        float(row.get("traitement_time", 0.0)),
+        float(row.get("size_file_snapshots", 0.0)),
+        float(row.get("size_file_slices", 0.0)),
+        float(row.get("size_file_sismos", 0.0)),
+        float(row.get("writting_snapshots_time", 0.0)),
     )
+
 
 
 def read_stat_compress(stat_path):
@@ -38,7 +42,8 @@ def append_global_csv(
     measures_path,
     stat_path=None
 ):
-    kernel_time, size_snap, write_time, size_sismos = read_measures(measures_path)
+    (kernel_time, output_time, traitement_time,
+     size_snap, size_slices, size_sismos, write_time) = read_measures(measures_path)
 
     if stat_path is not None and os.path.exists(stat_path):
         rmse_mean, rmse_max, rel_err = read_stat_compress(stat_path)
@@ -50,9 +55,12 @@ def append_global_csv(
         writer.writerow([
             ex, ey, ez, name,
             kernel_time,
+            output_time,
+            traitement_time,
             size_snap,
-            write_time,
+            size_slices,
             size_sismos,
+            write_time,
             rmse_mean,
             rmse_max,
             rel_err
@@ -114,7 +122,7 @@ def main():
     compressed_quant_dirs = run_semproxy(val_range, extra_flags=["--quantify"])
     compressed_rle_dirs = run_semproxy(val_range, extra_flags=["--rle", "--save-sismos"])
     compressed_rle_quant_dirs = run_semproxy(val_range, extra_flags=["--rle", "--quantify"])
-    
+
     run_decompress(compressed_quant_dirs)
     run_decompress(compressed_rle_dirs)
     run_decompress(compressed_rle_quant_dirs)

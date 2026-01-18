@@ -53,16 +53,33 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 
-# Sauvegarde
 out_path2 = os.path.join(out_dir, "rmse_quant.png")
 plt.savefig(out_path2)
 plt.close()
 
 
 
+df_quant = df[df["name"] == "quant"].sort_values("ex")
 
 plt.figure()
 
+plt.plot(df_quant["ex"], df_quant["RMSE_moyen"], marker="o", label="avg_RMSE")
+plt.plot(df_quant["ex"], df_quant["RMSE_max"], marker="s", label="max_RMSE")
+
+plt.xlabel("ex")
+plt.ylabel("RMSE ")
+plt.title("RMSE  compared to ex")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+
+out_path2 = os.path.join(out_dir, "rmse_quant_without_rel.png")
+plt.savefig(out_path2)
+plt.close()
+
+
+
+plt.figure()
 for method in methods:
     sub = df[df["name"] == method].sort_values("ex")
     plt.plot(
