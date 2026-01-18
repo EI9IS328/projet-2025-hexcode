@@ -44,5 +44,5 @@ ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('%d'))
 plt.suptitle("Pressure Field 2D Slices - Timestep = " + tstep)
 
 plt.subplots_adjust(wspace=0.5, hspace=0.6)
-out_path4 = os.path.join(out_dir, "sismos_size.png")
+out_path4 = os.path.join(out_dir, "slice.png")
 plt.savefig(out_path4)
