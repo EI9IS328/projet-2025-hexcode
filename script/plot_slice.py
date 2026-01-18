@@ -5,10 +5,12 @@ import matplotlib.pyplot as plt
 import sys
 import seaborn as sns
 import matplotlib.ticker as mticker
+import os
 
 
 
 file = sys.argv[1] 
+out_dir = "script/img"
 
 data = pd.read_csv(file,sep=" ")
 tstep =   str(data.at[1,'timestep'])
@@ -42,4 +44,5 @@ ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('%d'))
 plt.suptitle("Pressure Field 2D Slices - Timestep = " + tstep)
 
 plt.subplots_adjust(wspace=0.5, hspace=0.6)
-plt.show()
+out_path4 = os.path.join(out_dir, "sismos_size.png")
+plt.savefig(out_path4)

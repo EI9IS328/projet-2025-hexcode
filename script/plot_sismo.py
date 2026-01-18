@@ -7,6 +7,7 @@ import math
 file = sys.argv[1]
 df = pd.read_csv(file,sep=" ")  
 ids = df["index"].unique()
+out_dir = "script/img"
 
 n_ids = len(ids)
 
@@ -31,4 +32,5 @@ for i, sensor_id in enumerate(ids, start=1):
 
 plt.suptitle("Pressure evolution for different recever")
 plt.tight_layout()
-plt.show()
+out_path4 = os.path.join(out_dir, "sismos_size.png")
+plt.savefig(out_path4)
